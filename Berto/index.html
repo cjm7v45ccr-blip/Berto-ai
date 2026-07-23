@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-density="comfortable" data-motion="full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#070908" />
+  <meta name="description" content="Berto is a calm, capable AI workspace for thinking, writing, and getting things done." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>Berto · AI workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <div class="ambient" aria-hidden="true"><span></span><span></span></div>
+
+    <!-- First-Time Setup Overlay -->
+    <div class="setup-overlay" id="setup-overlay" hidden>
+      <div class="setup-card">
+        <div class="setup-brand"><span class="brand-mark">B</span></div>
+        <h1 class="setup-title">Welcome to <span>Berto</span></h1>
+        <p class="setup-subtitle">Your calm, capable AI workspace. Let's get you set up in seconds.</p>
+        <div class="setup-fields">
+          <label class="setup-label">What should I call you?
+            <input class="setup-input" id="setup-name" type="text" placeholder="Your name" autocomplete="off" autofocus>
+          </label>
+          <label class="setup-label">Your Gemini API key
+            <input class="setup-input" id="setup-api-key" type="password" placeholder="AIza..." autocomplete="off">
+            <small class="setup-hint">Stored locally in your browser. Never sent anywhere else. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get a free key →</a></small>
+          </label>
+        </div>
+        <button class="button primary setup-submit" id="setup-submit" disabled>Get Started <span>→</span></button>
+        <p class="setup-skip"><button class="text-button" id="setup-skip">Skip for now</button></p>
+      </div>
+    </div>
+
+    <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+      <div class="sidebar-top">
+        <button class="brand" data-action="home" aria-label="Berto home"><span class="brand-mark">B</span><span class="brand-name">berto</span></button>
+        <button class="icon-button sidebar-close" data-action="close-mobile" aria-label="Close navigation">×</button>
+      </div>
+      <button class="new-chat sidebar-new" data-action="new-chat"><span class="plus">+</span><span class="nav-label">New chat</span><kbd>⌘ K</kbd></button>
+      <nav class="nav-list" aria-label="Workspace">
+        <button class="nav-item active" data-route="chat" title="Chats"><span class="nav-icon">⌁</span><span class="nav-label">Chats</span><span class="nav-count">1</span></button>
+        <button class="nav-item" data-route="live" title="Berto Live"><span class="nav-icon">🎙</span><span class="nav-label">Berto Live</span></button>
+        <button class="nav-item" data-route="writing" title="Writing Studio"><span class="nav-icon">✦</span><span class="nav-label">Writing Studio</span></button>
+        <button class="nav-item" data-route="files" title="Files"><span class="nav-icon">□</span><span class="nav-label">Files</span></button>
+        <button class="nav-item" data-route="projects" title="Projects"><span class="nav-icon">⊞</span><span class="nav-label">Projects</span></button>
+      </nav>
+      <div class="sidebar-section">
+        <div class="section-label"><span class="nav-label">Recent chats</span><button class="icon-button nav-label" data-action="search" aria-label="Search chats">⌕</button></div>
+        <div class="chat-list" id="chat-list"></div>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-route="settings" title="Settings"><span class="nav-icon">⚙</span><span class="nav-label">Settings</span></button>
+        <button class="profile-row" data-action="profile" aria-label="Open profile"><span class="avatar">R</span><span class="nav-label profile-copy"><strong id="sidebar-name">Remberto</strong><small>Personal workspace</small></span><span class="nav-label">•••</span></button>
+      </div>
+    </aside>
+    <div class="drawer-scrim" data-action="close-mobile"></div>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="topbar-left"><button class="icon-button menu-button" data-action="toggle-mobile" aria-label="Open navigation">☰</button><span class="mobile-brand">berto</span><div class="breadcrumb" id="breadcrumb">Chats</div></div>
+        <div class="topbar-center"><button class="model-selector" data-action="model"><span class="status-dot"></span><span id="model-label">Berto Fast</span><span class="chevron">⌄</span></button></div>
+        <div class="topbar-right"><button class="icon-button" data-action="search" aria-label="Search chats">⌕</button><button class="upgrade-button" data-action="upgrade">Upgrade <span>↗</span></button><button class="avatar top-avatar" data-action="profile" aria-label="Open profile">R</button></div>
+      </header>
+
+      <section class="view active" id="view-chat" data-view="chat">
+        <div class="chat-layout">
+          <div class="chat-main" id="chat-main">
+            <div class="chat-scroll">
+              <div class="welcome" id="welcome"><div class="eyebrow"><span class="spark">✦</span> Your thinking partner</div><h1>Hey, <span id="welcome-name">Remberto</span></h1><p>What can I help with today?</p></div>
+              <div class="suggestions" id="suggestions">
+                <button class="suggestion" data-prompt="Help me write a clear, professional email"><span class="suggestion-icon teal">↗</span><span><strong>Writing</strong><small>Make words work harder</small></span><span class="arrow">→</span></button>
+                <button class="suggestion" data-prompt="Research this topic and give me a concise brief"><span class="suggestion-icon amber">◌</span><span><strong>Research</strong><small>Go from question to clarity</small></span><span class="arrow">→</span></button>
+                <button class="suggestion" data-prompt="Create a focused study plan for me"><span class="suggestion-icon violet">✧</span><span><strong>Study</strong><small>Learn with a plan</small></span><span class="arrow">→</span></button>
+                <button class="suggestion" data-prompt="Brainstorm fresh ideas for my next project"><span class="suggestion-icon blue">✳</span><span><strong>Brainstorm</strong><small>Find the unexpected angle</small></span><span class="arrow">→</span></button>
+                <button class="suggestion" data-prompt="Help me solve this coding problem"><span class="suggestion-icon pink">⌘</span><span><strong>Coding</strong><small>Build, debug, ship</small></span><span class="arrow">→</span></button>
+                <button class="suggestion" data-prompt="Help me improve my resume for a new role"><span class="suggestion-icon green">▤</span><span><strong>Resume</strong><small>Show your best work</small></span><span class="arrow">→</span></button>
+              </div>
+              <div class="messages" id="messages" aria-live="polite"></div>
+            </div>
+            <div class="composer-wrap"><div class="drop-note" id="drop-note">Drop files to add context</div><div class="composer" id="composer"><textarea id="prompt" rows="1" placeholder="Ask anything..." aria-label="Message Berto"></textarea><div class="composer-footer"><div class="composer-tools"><button class="tool-button" data-action="attach" aria-label="Attach a file">＋</button><button class="tool-button voice-switch-btn" data-action="switch-to-live" title="Pick up conversation with Voice">🎙</button><span class="tool-hint"><kbd>↵</kbd> to send <span class="muted">·</span> <kbd>⇧ ↵</kbd> for new line</span></div><div class="composer-meta"><span id="attachment-label"></span><span class="char-count" id="char-count">0 / 8,000</span><button class="send-button" id="send-button" data-action="send" aria-label="Send message" disabled>↑</button></div></div></div><input type="file" id="file-input" hidden multiple accept=".pdf,.doc,.docx,.txt,.md,.csv,.json,.js,.ts,.py,.html,.css,.png,.jpg,.jpeg,.webp,.gif,.bmp,.ico" /></div>
+            <p class="composer-disclaimer">Berto can make mistakes. Check important info.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-live" data-view="live">
+        <div class="live-shell">
+          <!-- Live Header -->
+          <div class="live-header">
+            <div class="live-title-group">
+              <div class="live-badge">LIVE VOICE</div>
+              <div class="live-status-wrap">
+                <span class="live-dot" id="live-dot"></span>
+                <span id="live-status">Disconnected</span>
+              </div>
+            </div>
+            <div class="live-header-actions">
+              <select class="live-voice-select" id="live-voice-select" title="Berto's voice">
+                <option value="Puck">Puck</option>
+                <option value="Charon">Charon</option>
+              </select>
+              <button class="button ghost danger-hover" data-action="live-clear" id="live-clear-btn" title="Clear live conversation">
+                Clear chat 🗑
+              </button>
+              <button class="button ghost" id="live-api-check" data-action="open-ai-settings">API key ⚙</button>
+            </div>
+          </div>
+
+          <!-- Live Conversation & Welcome -->
+          <div class="live-conversation" id="live-conversation">
+            <div class="live-welcome" id="live-welcome">
+              <div class="live-welcome-icon">🎙</div>
+              <div class="eyebrow"><span class="spark">✦</span> Real-time Voice Partner</div>
+              <h1>Hey, <span id="live-welcome-name">Remberto</span></h1>
+              <p>Tap the glowing microphone or press <kbd>Space</kbd> to talk. Berto listens and responds instantly with native audio.</p>
+            </div>
+            <div class="live-messages" id="live-messages"></div>
+          </div>
+
+          <!-- Live Controls & Visualizer -->
+          <div class="live-controls">
+            <!-- Reacting Orb (replaces wave bars) -->
+            <div class="live-orb-container">
+              <div class="live-orb" id="live-orb"></div>
+            </div>
+
+            <div class="live-mic-container">
+              <div class="mic-glow-aura" id="mic-aura"></div>
+              <button class="live-mic" id="live-mic" data-action="live-toggle" aria-label="Start voice chat">
+                <span class="live-mic-icon" id="mic-icon">🎙</span>
+              </button>
+            </div>
+
+            <div class="live-meter" id="live-meter">
+              <div class="live-meter-fill" id="live-meter-fill"></div>
+            </div>
+
+            <div class="live-hint">
+              <span id="live-hint-text">Press microphone or <kbd>Space</kbd> to talk</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-writing" data-view="writing">
+        <div class="page-shell writing-page">
+          <div class="page-heading"><div><div class="eyebrow">✦ Workspace tool</div><h2>Writing Studio</h2><p>Write with your own voice. Berto uses your saved samples only in this workspace.</p></div><button class="button primary" data-action="new-writing">New draft <span>＋</span></button></div>
+          <div class="writing-grid">
+            <div class="writing-editor panel">
+              <div class="editor-toolbar"><select class="mode-select" id="writing-mode"><option>Essay</option><option>Email</option><option>Blog</option><option>Report</option><option>Resume</option><option>Cover Letter</option></select><span class="save-status" id="writing-save-status">● Saved locally</span><button class="icon-button" data-action="writing-clear" aria-label="Clear draft">⌫</button></div>
+              <textarea id="writing-input" placeholder="Start with an idea, a rough outline, or paste your draft here..."></textarea>
+              <div class="writing-footer-row"><span id="writing-metrics">0 words · readability 0</span><span class="writing-export-actions"><button class="text-button" data-action="export-writing-md">Export .md</button><button class="text-button" data-action="export-writing-txt">Export .txt</button></span></div>
+              <div class="writing-output" id="writing-output" hidden></div>
+              <div class="editor-footer"><span>Writing profile: <strong id="active-profile">Clear & thoughtful</strong></span><button class="button ghost" data-action="writing-generate">Generate with my voice <span>✦</span></button></div>
+            </div>
+            <aside class="writing-tools">
+              <div class="panel profile-card"><div class="card-heading"><span>Writing profile</span><button class="text-button" data-action="profile-settings">Edit profile</button></div><h3 id="profile-card-name">Clear & thoughtful</h3><p id="profile-card-summary">Warm, precise, and easy to follow.</p><div class="profile-tags" id="profile-tags"><span>Balanced</span><span>Conversational</span><span>Plain language</span></div><button class="button ghost profile-sample-button" data-action="edit-writing-profile">Add writing samples <span>＋</span></button></div>
+              <div class="panel prompt-card"><div class="card-heading"><span>Start from a template</span></div><button data-writing-template="Write a professional email with a clear subject line and friendly tone">Professional email <span>→</span></button><button data-writing-template="Write a concise report with an executive summary and key findings">Project report <span>→</span></button><button data-writing-template="Write a compelling cover letter tailored to a role">Cover letter <span>→</span></button></div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-files" data-view="files">
+        <div class="page-shell">
+          <div class="page-heading"><div><div class="eyebrow">Workspace library</div><h2>Files</h2><p>Keep the context behind your conversations close.</p></div><button class="button primary" data-action="upload">Upload files <span>↑</span></button></div>
+          <div class="upload-panel panel" id="upload-panel"><div class="upload-icon">↑</div><h3>Drop files here</h3><p>or browse from your device · PDF, DOCX, TXT, MD up to 5MB</p><button class="button ghost" data-action="upload">Browse files</button></div>
+          <div class="file-grid" id="file-grid"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-projects" data-view="projects">
+        <div class="page-shell">
+          <div class="page-heading"><div><div class="eyebrow">Organize your work</div><h2>Projects</h2><p>Give ongoing work a home with shared context.</p></div><button class="button primary" data-action="new-project">New project <span>＋</span></button></div>
+          <div class="project-grid" id="project-grid"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-settings" data-view="settings">
+        <div class="page-shell settings-page">
+          <div class="page-heading"><div><div class="eyebrow">Your workspace</div><h2>Settings</h2><p>Make Berto feel more like yours.</p></div></div>
+          <div class="settings-layout">
+            <nav class="settings-nav"><button class="active">Appearance</button><button>AI preferences</button><button>Account</button><button>Privacy</button></nav>
+            <div class="settings-content">
+              <div class="settings-section">
+                <h3>Appearance</h3><p class="section-copy">Tune the way Berto looks and feels.</p>
+                <div class="setting-row"><div><strong>Theme</strong><span>Choose a color scheme</span></div><div class="segmented"><button class="active" data-setting-theme="dark">Dark</button><button data-setting-theme="light">Light</button></div></div>
+                <div class="setting-row"><div><strong>Density</strong><span>Adjust the amount of space in the interface</span></div><div class="segmented"><button data-setting-density="compact">Compact</button><button class="active" data-setting-density="comfortable">Comfortable</button></div></div>
+                <div class="setting-row"><div><strong>Motion</strong><span>Use subtle transitions and animations</span></div><label class="switch"><input type="checkbox" id="motion-toggle" checked><span></span></label></div>
+              </div>
+              <div class="settings-section">
+                <h3>AI preferences</h3><p class="section-copy">Control the way responses are generated.</p>
+                <div class="setting-row"><div><strong>Gemini API key</strong><span>Stored locally in this browser and never sent anywhere else.</span></div><input class="search-input api-key-input" id="api-key-setting" type="password" placeholder="AIza..." autocomplete="off"></div>
+              </div>
+              <div class="settings-section">
+                <h3>Account & privacy</h3><p class="section-copy">Your data stays in your browser by default.</p>
+                <div class="setting-row"><div><strong>Workspace Name</strong><span>How Berto refers to you</span></div><input class="search-input api-key-input" id="name-setting" type="text" placeholder="Your name" autocomplete="off"></div>
+                <div class="setting-actions"><button class="button ghost" data-action="export">Export my data <span>↓</span></button><button class="button danger" data-action="clear-data">Delete local data</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast-stack" id="toasts" aria-live="polite"></div>
+  <div class="modal-backdrop" id="modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head"><h3 id="modal-title">Search chats</h3><button class="icon-button" data-action="close-modal" aria-label="Close">×</button></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script src="js/live.js"></script>
+</body>
+</html>
