@@ -208,13 +208,11 @@ Whenever the user asks you to perform a workspace or UI action, YOU MUST CALL th
 
 Exact argument structures for \`execute_ui_action\`:
 - "Change theme to light" / "Switch to dark mode" -> actions: [{ "action": "set_theme", "value": "light"|"dark" }]
-- "Go to Writing Studio" / "Open Settings" / "Show Files" / "Go to Projects" -> actions: [{ "action": "navigate", "view": "writing"|"files"|"projects"|"settings"|"chat" }]
+- "Go to Writing Studio" / "Open Settings" / "Show Files" -> actions: [{ "action": "navigate", "view": "writing"|"files"|"settings"|"chat" }]
 - "Change my name to Alex" -> actions: [{ "action": "set_name", "value": "Alex" }]
 - "Start a new chat" -> actions: [{ "action": "new_chat" }]
 - "Delete this chat" -> actions: [{ "action": "delete_chat" }]
 - "Write an essay about AI" -> actions: [{ "action": "use_writing_studio", "format": "Essay", "prompt": "AI topic" }]
-- "Add task Design Logo" -> actions: [{ "action": "add_task", "title": "Design Logo", "status": "todo" }]
-
 ━━━━━━━━━━━━━━━━━━
 IDENTITY & CORE PERSONALITY
 ━━━━━━━━━━━━━━━━━━
@@ -400,7 +398,7 @@ If the user says "bye" or "goodbye", respond with a very brief, polite farewell.
                               value: { type: "STRING", description: "Text value or message" },
                               target: { type: "STRING", description: "Action or element target name" },
                               selector: { type: "STRING", description: "CSS element selector" },
-                              view: { type: "STRING", description: "Target screen: 'chat', 'writing', 'files', 'projects', 'settings', 'voice'" },
+                              view: { type: "STRING", description: "Target screen: 'chat', 'writing', 'files', 'settings', 'voice'" },
                               text: { type: "STRING", description: "Text to search for when clicking by visible text" },
                               direction: { type: "STRING", description: "Scroll direction: 'up' or 'down'" },
                               amount: { type: "NUMBER", description: "Scroll amount in pixels (default 400)" },

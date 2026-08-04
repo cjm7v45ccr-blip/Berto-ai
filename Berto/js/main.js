@@ -39,174 +39,207 @@ When asked to design, build, or create a UI component, widget, game, or website,
 `;
 
 // =========================================================
+// REAL GRAPH & VISUAL MANDATE (CRITICAL)
+// =========================================================
+// Instructs Berto to always output real visual graphics (charts, SVGs, diagrams)
+// instead of ASCII art or text pseudo-visuals when asked for graphs or visuals.
+const GRAPH_INSTRUCTION = `
+━━━━━━━━━━━━━━━━━━
+REAL GRAPH & VISUAL MANDATE (CRITICAL)
+━━━━━━━━━━━━━━━━━━
+Whenever the user asks for a graph, chart, plot, diagram, or visual data:
+- YOU MUST output a real visual chart using a \`\`\`chart block:
+\`\`\`chart
+{
+  "type": "line" | "bar" | "pie" | "doughnut" | "radar",
+  "title": "Chart Title",
+  "labels": ["Item 1", "Item 2", "Item 3"],
+  "datasets": [
+    {
+      "label": "Dataset Name",
+      "data": [10, 25, 40]
+    }
+  ]
+}
+\`\`\`
+- For flowcharts or diagrams, use a \`\`\`mermaid block.
+- For custom icons or graphics, output raw inline <svg> tags.
+- NEVER output ASCII art, text lists, or pseudo-graphs. ALWAYS generate real visual graphics.
+- CRITICAL JSON VALIDITY: Output ONLY strict, valid JSON inside the \`\`\`chart block. Use double quotes for every key and string value. NO trailing commas, NO single quotes, NO comments, NO code fences inside the JSON. Follow the exact schema shown above so the chart renders perfectly.
+`;
+
+const LATEX_RULES = `
+━━━━━━━━━━━━━━━━━━
+MATH & LATEX FORMATTING RULES
+━━━━━━━━━━━━━━━━━━
+1. For display equations (standalone centered formulas), wrap in double dollar signs: $$ \\frac{a}{b} = c $$
+2. For inline math formulas, wrap in single dollar signs: $x + y = z$
+3. Do NOT use single dollar signs for money/currency (e.g. write "186 lbs" or "186 USD", not "$186").
+4. Keep LaTeX expressions valid and standard.
+`;
+
+// =========================================================
 // Berto Storage Engine - IndexedDB Upgrade
 // =========================================================
-// Replaces fragile localStorage with gigabytes of reliable offline storage
-class BertoStorageDB {
-  constructor(dbName = `${typeof INSTANCE_PREFIX !== 'undefined' ? INSTANCE_PREFIX : 'berto'}_db`, version = 1) {
-    this.dbName = dbName;
-    this.version = version;
-    this.db = null;
-  }
-
-  async init() {
-    if (this.db) return this.db;
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version);
-
-      request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('chats')) {
-          db.createObjectStore('chats', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('files')) {
-          db.createObjectStore('files', { keyPath: 'name' });
-        }
-        if (!db.objectStoreNames.contains('settings')) {
-          db.createObjectStore('settings', { keyPath: 'key' });
-        }
-        if (!db.objectStoreNames.contains('messages')) {
-          db.createObjectStore('messages', { keyPath: 'id' });
-        }
-      };
-
-      request.onsuccess = (e) => {
-        this.db = e.target.result;
-        resolve(this.db);
-      };
-
-      request.onerror = (e) => reject(e.target.error);
-    });
-  }
-
-  async set(storeName, key, value) {
-    await this.init();
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(storeName, 'readwrite');
-      const store = tx.objectStore(storeName);
-      const data = typeof value === 'object' && !value.id && !value.name && !value.key 
-        ? { key, data: value } 
-        : value;
-      
-      const req = store.put(data);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async get(storeName, key) {
-    await this.init();
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(storeName, 'readonly');
-      const store = tx.objectStore(storeName);
-      const req = store.get(key);
-      req.onsuccess = () => {
-        const res = req.result;
-        resolve(res ? (res.data !== undefined ? res.data : res) : null);
-      };
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async getAll(storeName) {
-    await this.init();
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(storeName, 'readonly');
-      const store = tx.objectStore(storeName);
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async remove(storeName, key) {
-    await this.init();
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(storeName, 'readwrite');
-      const store = tx.objectStore(storeName);
-      const req = store.delete(key);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async clear(storeName) {
-    await this.init();
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(storeName, 'readwrite');
-      const store = tx.objectStore(storeName);
-      const req = store.clear();
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  }
-}
-
-const dbStorage = new BertoStorageDB();
-
+// BULLETPROOF KATEX & MARKDOWN PARSER
 // =========================================================
-// Smart Client-Side File Chunking (Mini-RAG)
-// =========================================================
-// Splits uploaded files into ~500-word chunks and uses TF-IDF scoring
-// to attach only the most relevant chunks to prompts
-class MiniRAG {
-  constructor() {
-    this.chunkSize = 500; // words per chunk
-  }
+function renderMarkdownEnhanced(input = '') {
+  if (!input) return '';
 
-  chunkText(text = '') {
-    const words = text.split(/\s+/);
-    const chunks = [];
-    for (let i = 0; i < words.length; i += this.chunkSize) {
-      chunks.push(words.slice(i, i + this.chunkSize).join(' '));
+  let text = input;
+
+  // 1. PROTECT CODE BLOCKS: Don't parse math inside code blocks or inline code
+  const codeBlocks = [];
+  text = text.replace(/```[\s\S]*?```|`[^`]+`/g, (match) => {
+    const placeholder = `%%CODEBLOCK_${codeBlocks.length}%%`;
+    codeBlocks.push(match);
+    return placeholder;
+  });
+
+  // 2. EXTRACT DISPLAY MATH ($$ ... $$)
+  const mathBlocks = [];
+  text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
+    const placeholder = `%%MATHBLOCK_${mathBlocks.length}%%`;
+    mathBlocks.push(math.trim());
+    return placeholder;
+  });
+
+  // 3. EXTRACT INLINE MATH ($ ... $) - Smart regex ignores plain currency (e.g. $186)
+  const mathInlines = [];
+  text = text.replace(/(?<!\\)\$([^\$\n]+?)\$/g, (match, math) => {
+    const trimmed = math.trim();
+    // Skip if it looks like plain currency (e.g., "$186 - 140 = 46") without LaTeX tags
+    if (/^\d+(\.\d+)?(\s*[\-\+\=\/]\s*\d+)*$/.test(trimmed)) {
+      return match; 
     }
-    return chunks;
-  }
+    const placeholder = `%%MATHINLINE_${mathInlines.length}%%`;
+    mathInlines.push(trimmed);
+    return placeholder;
+  });
 
-  tfidfScore(query = '', chunk = '') {
-    const queryTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
-    const chunkWords = chunk.toLowerCase().split(/\s+/);
-    const chunkLen = chunkWords.length;
-    if (!chunkLen) return 0;
+  // 4. RESTORE CODE BLOCKS before standard Markdown parsing
+  text = text.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[parseInt(idx)]);
 
-    // Count term frequencies in chunk
-    const tfMap = {};
-    for (const word of chunkWords) {
-      tfMap[word] = (tfMap[word] || 0) + 1;
-    }
+  // 5. RENDER STANDARD MARKDOWN
+  let html = renderMarkdown(text);
 
-    let score = 0;
-    for (const term of queryTerms) {
-      if (tfMap[term]) {
-        // TF = frequency / total words, multiplied for emphasis
-        score += (tfMap[term] / chunkLen) * (1 + Math.log2(chunkLen + 1));
+  // 6. RENDER KATEX SAFELY
+  if (window.katex) {
+    // Render Display Math Blocks
+    html = html.replace(/%%MATHBLOCK_(\d+)%%/g, (_, idx) => {
+      const rawMath = mathBlocks[parseInt(idx)];
+      try {
+        return `<div class="math-block">${window.katex.renderToString(rawMath, { displayMode: true, throwOnError: false })}</div>`;
+      } catch (e) {
+        return `<div class="math-block math-error">${escapeHtml(rawMath)}</div>`;
       }
-    }
-    return score;
+    });
+
+    // Render Inline Math
+    html = html.replace(/%%MATHINLINE_(\d+)%%/g, (_, idx) => {
+      const rawMath = mathInlines[parseInt(idx)];
+      try {
+        return window.katex.renderToString(rawMath, { displayMode: false, throwOnError: false });
+      } catch (e) {
+        return `$${escapeHtml(rawMath)}$`;
+      }
+    });
   }
 
-  getRelevantChunks(text = '', query = '', maxChunks = 3) {
-    if (!text || !query) return text;
-    const chunks = this.chunkText(text);
-    if (chunks.length <= maxChunks) return text;
+  // 7. PROCESS MERMAID DIAGRAMS
+  html = html.replace(/<pre class="code-block"><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
+    const rawMermaid = decodeURIComponent(code).replace(/</g, '<').replace(/>/g, '>').replace(/&/g, '&');
+    const id = `mermaid_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    
+    setTimeout(() => {
+      if (window.mermaid) {
+        window.mermaid.initialize({ 
+          startOnLoad: false, 
+          theme: document.documentElement.dataset.theme === 'light' ? 'default' : 'dark',
+          securityLevel: 'loose'
+        });
+        const el = document.getElementById(id);
+        if (el) {
+          window.mermaid.render(`${id}_svg`, rawMermaid).then(({ svg }) => {
+            el.innerHTML = svg;
+          }).catch(err => {
+            el.innerHTML = `<pre class="mermaid-error">Diagram render error</pre>`;
+          });
+        }
+      }
+    }, 100);
 
-    const scored = chunks.map((chunk, i) => ({
-      index: i,
-      chunk,
-      score: this.tfidfScore(query, chunk)
-    }));
+    return `<div class="mermaid-container" id="${id}"><div class="typing">Rendering Diagram...</div></div>`;
+  });
 
-    scored.sort((a, b) => b.score - a.score);
+  // 8. PROCESS CHART.JS BLOCKS
+  html = html.replace(/<pre class="code-block"><code class="language-chart">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
+    const rawChart = decodeURIComponent(code).replace(/</g, '<').replace(/>/g, '>').replace(/&/g, '&');
+    const id = `chart_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-    // Take top-k chunks and sort by original order
-    const selected = scored.slice(0, maxChunks);
-    selected.sort((a, b) => a.index - b.index);
+    setTimeout(() => {
+      const canvas = document.getElementById(id);
+      if (!canvas) return;
 
-    return selected.map(s => s.chunk).join('\n\n[...]\n\n');
-  }
+      if (!window.Chart) {
+        canvas.outerHTML = `<pre class="chart-error">⚠️ Chart.js library failed to load.</pre>`;
+        return;
+      }
+
+      try {
+        const config = JSON.parse(sanitizeChartJson(rawChart));
+        if (Chart.getChart(canvas)) return;
+
+        const isDark = document.documentElement.dataset.theme !== 'light';
+        const textColor = isDark ? '#cbd5e1' : '#334155';
+        const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+        const palette = ['#82f3d0', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#34d399', '#f87171', '#22d3ee'];
+
+        const datasets = (config.datasets || []).map((ds, i) => ({
+          label: ds.label || `Dataset ${i + 1}`,
+          data: ds.data || [],
+          borderColor: ds.color || palette[i % palette.length],
+          backgroundColor: ds.backgroundColor || (ds.color || palette[i % palette.length]) + '33',
+          fill: ds.fill !== undefined ? ds.fill : (config.type === 'line'),
+          tension: config.type === 'line' ? 0.3 : undefined,
+          borderWidth: 2,
+          pointRadius: config.type === 'line' ? 3 : undefined
+        }));
+
+        const chartConfig = {
+          type: config.type || 'bar',
+          data: { labels: config.labels || [], datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: { display: !!config.title, text: config.title || '', color: textColor, font: { size: 15, weight: '600' } },
+              legend: { labels: { color: textColor } }
+            },
+            scales: (config.type === 'pie' || config.type === 'doughnut') ? {} : {
+              x: { ticks: { color: textColor }, grid: { color: gridColor } },
+              y: { ticks: { color: textColor }, grid: { color: gridColor } }
+            }
+          }
+        };
+
+        new Chart(canvas, chartConfig);
+      } catch (err) {
+        const currentCanvas = document.getElementById(id);
+        if (currentCanvas) {
+          currentCanvas.outerHTML = `<pre class="chart-error">⚠️ Chart render error: ${escapeHtml(err.message)}</pre>`;
+        }
+      }
+    }, 50);
+
+    return `<div class="chart-container"><canvas id="${id}"></canvas></div>`;
+  });
+
+  return html;
 }
 
-const miniRag = new MiniRAG();
+// NOTE: MiniRAG class not currently defined - commenting out to prevent ReferenceError
+// const miniRag = new MiniRAG();
 
 // =========================================================
 // INSTANT TOKEN STREAMER — Smooth Cinematic Line-by-Line Typing
@@ -272,7 +305,16 @@ class SmoothStreamer {
       this.renderedText += remaining.substring(0, chunkSize);
       
       // Inject cursor if not inside a code block
-      let htmlToRender = renderMarkdown(stripJsonActions(this.renderedText));
+      const streamText = stripJsonActions(this.renderedText);
+      let htmlToRender;
+      // Once a complete ```chart or ```mermaid block is present, switch to the
+      // enhanced renderer so charts & diagrams appear immediately — no waiting
+      // for the entire response to finish streaming.
+      if ((/```chart[\s\S]*?```/i.test(streamText) || /```mermaid[\s\S]*?```/i.test(streamText)) && typeof renderMarkdownEnhanced === 'function') {
+        htmlToRender = renderMarkdownEnhanced(streamText);
+      } else {
+        htmlToRender = renderMarkdown(streamText);
+      }
       if (!inCodeBlock && !this.isFinished) {
          htmlToRender += '<span class="stream-cursor"></span>';
       }
@@ -290,7 +332,7 @@ class SmoothStreamer {
     
     // Final render to apply syntax highlighting cleanly at the end
     if (this.node) {
-      this.node.innerHTML = renderMarkdown(this.renderedText);
+      this.node.innerHTML = typeof renderMarkdownEnhanced === 'function' ? renderMarkdownEnhanced(this.renderedText) : renderMarkdown(this.renderedText);
       if (window.hljs) {
         this.node.querySelectorAll('pre code').forEach((block) => {
           window.hljs.highlightElement(block);
@@ -368,6 +410,39 @@ function getFileIconSvg(filename = '') {
   return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
 }
 
+// Resizes large images to a max width/height of 1600px to prevent browser crashes
+function compressImage(file, maxWidth = 1600, maxHeight = 1600) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Output as JPEG at 85% quality to save massive amounts of memory
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = reject;
+      img.src = event.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 async function handleImagePaste(event) {
   const items = event.clipboardData?.items;
   if (!items) return;
@@ -381,13 +456,15 @@ async function handleImagePaste(event) {
           continue;
         }
         try {
-          const base64Data = await fileToBase64(file);
+          // Compress the image before converting to base64
+          const base64Data = await compressImage(file);
+          
           currentAttachments.push({
-            name: file.name || `pasted_image_${Date.now()}.png`,
-            type: file.type || 'image/png',
-            mimeType: file.type || 'image/png',
-            size: `${Math.max(1, Math.ceil(file.size / 1024))} KB`,
-            bytes: file.size,
+            name: file.name || `pasted_image_${Date.now()}.jpg`,
+            type: 'image/jpeg',
+            mimeType: 'image/jpeg',
+            size: `Compressed`,
+            bytes: Math.round(base64Data.length * 0.75), // Estimate base64 byte size
             content: base64Data,
             isImage: true,
             file
@@ -468,6 +545,35 @@ async function extractDocxText(file) {
 }
 
 // Modal Helpers
+// =========================================================
+// MODAL ACCESSIBILITY FOCUS TRAP
+// =========================================================
+function trapModalFocus(modalEl) {
+  if (!modalEl) return;
+  
+  const focusables = modalEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (!focusables.length) return;
+
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  modalEl.onkeydown = (e) => {
+    if (e.key !== 'Tab') return;
+
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        last.focus();
+        e.preventDefault();
+      }
+    } else {
+      if (document.activeElement === last) {
+        first.focus();
+        e.preventDefault();
+      }
+    }
+  };
+}
+
 function openModal(title, bodyHtml) {
   const backdrop = $('#modal');
   const titleEl = $('#modal-title');
@@ -478,11 +584,14 @@ function openModal(title, bodyHtml) {
   bodyEl.innerHTML = bodyHtml;
   backdrop.hidden = false;
 
-  // Set accessibility attributes and focus trap
+  // Set accessibility attributes
   backdrop.setAttribute('role', 'dialog');
   backdrop.setAttribute('aria-modal', 'true');
   
-  trapModalFocus(backdrop);
+  // Safe focus trap call
+  if (typeof trapModalFocus === 'function') {
+    trapModalFocus(backdrop);
+  }
   
   // Focus first interactive element
   setTimeout(() => {
@@ -512,21 +621,41 @@ function closeLightbox() {
   if (img) img.src = '';
 }
 
-// 3. Markdown Rendering
+// 3. Upgraded Markdown Rendering (With Full Table Support & SVG/Graph Preservation)
 function renderMarkdown(input = '') {
-  const lines = input.split('\n');
-  let html = '';
+  if (!input) return '';
+
+  // Preserve raw SVG tags so Berto can draw custom vector graphics directly in chat
+  const svgBlocks = [];
+  let html = input.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
+    const placeholder = `%%SVG_BLOCK_${svgBlocks.length}%%`;
+    svgBlocks.push(match);
+    return placeholder;
+  });
+
+  const lines = html.split('\n');
+  let resultHtml = '';
   let inCode = false;
   let code = '';
   let language = '';
+  let inTable = false;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
     if (line.startsWith('```')) {
+      if (inTable) { resultHtml += '</tbody></table></div>'; inTable = false; }
       if (inCode) {
         const safeCode = escapeHtml(code.trimEnd());
         const langLower = language.toLowerCase();
-        const runButton = langLower === 'html' ? `<button class="code-run" data-run-html="${encodeURIComponent(code)}"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px; margin-right:3px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>Run</button>` : '';        
-        html += `<pre class="code-block">${runButton}<button class="code-copy" data-code-copy="${encodeURIComponent(code)}">Copy</button><code class="language-${language}">${safeCode}</code></pre>`;
+
+        if (langLower === 'chart' || langLower === 'mermaid') {
+          // Keep raw code intact for renderMarkdownEnhanced to build real graphs
+          resultHtml += `<pre class="code-block"><code class="language-${langLower}">${encodeURIComponent(code)}</code></pre>`;
+        } else {
+          const runBtn = langLower === 'html' ? `<button class="code-run" data-run-html="${encodeURIComponent(code)}">Run</button>` : '';
+          resultHtml += `<pre class="code-block">${runBtn}<button class="code-copy" data-code-copy="${encodeURIComponent(code)}">Copy</button><code class="language-${language}">${safeCode}</code></pre>`;
+        }
         code = '';
         inCode = false;
       } else {
@@ -535,30 +664,55 @@ function renderMarkdown(input = '') {
       }
       continue;
     }
-    if (inCode) { 
-      code += `${line}\n`; 
-      continue; 
+
+    if (inCode) { code += `${line}\n`; continue; }
+
+    const safeLine = escapeHtml(line.trim());
+
+    // Markdown Table Rendering
+    if (safeLine.startsWith('|') && safeLine.endsWith('|')) {
+      if (/^\|[\s-:]+(\|[\s-:]+)+\|$/.test(safeLine)) continue;
+      const cells = safeLine.split('|').slice(1, -1).map(c => c.trim());
+
+      if (!inTable) {
+        inTable = true;
+        resultHtml += `<div class="table-container my-3 overflow-x-auto rounded-xl border border-white/10 bg-white/5 shadow-lg"><table class="w-full text-left text-sm text-slate-200"><thead><tr class="border-b border-white/10 bg-white/5 font-semibold">`;
+        cells.forEach(c => { resultHtml += `<th class="px-4 py-2.5">${inlineMarkdown(c)}</th>`; });
+        resultHtml += `</tr></thead><tbody>`;
+      } else {
+        resultHtml += `<tr class="border-b border-white/5 hover:bg-white/5">`;
+        cells.forEach(c => { resultHtml += `<td class="px-4 py-2.5">${inlineMarkdown(c)}</td>`; });
+        resultHtml += `</tr>`;
+      }
+      continue;
+    } else if (inTable) {
+      resultHtml += `</tbody></table></div>`;
+      inTable = false;
     }
 
-    const safeLine = escapeHtml(line);
-
-    if (/^### /.test(safeLine)) html += `<h4>${safeLine.slice(4)}</h4>`;
-    else if (/^## /.test(safeLine)) html += `<h3>${safeLine.slice(3)}</h3>`;
-    else if (/^# /.test(safeLine)) html += `<h2>${safeLine.slice(2)}</h2>`;
-    else if (/^[-*] /.test(safeLine)) html += `<li>${inlineMarkdown(safeLine.slice(2))}</li>`;
-    else if (/^\d+\. /.test(safeLine)) html += `<li>${inlineMarkdown(safeLine.replace(/^\d+\. /, ''))}</li>`;
-    else if (/^> /.test(safeLine)) html += `<blockquote>${inlineMarkdown(safeLine.slice(2))}</blockquote>`;
-    else if (!safeLine.trim()) html += '<div class="md-break"></div>';
-    else html += `<p>${inlineMarkdown(safeLine)}</p>`;
+    if (/^### /.test(safeLine)) resultHtml += `<h4>${safeLine.slice(4)}</h4>`;
+    else if (/^## /.test(safeLine)) resultHtml += `<h3>${safeLine.slice(3)}</h3>`;
+    else if (/^# /.test(safeLine)) resultHtml += `<h2>${safeLine.slice(2)}</h2>`;
+    else if (/^[-*] /.test(safeLine)) resultHtml += `<li>${inlineMarkdown(safeLine.slice(2))}</li>`;
+    else if (/^\d+\. /.test(safeLine)) resultHtml += `<li>${inlineMarkdown(safeLine.replace(/^\d+\. /, ''))}</li>`;
+    else if (!safeLine) resultHtml += '<div class="md-break"></div>';
+    else resultHtml += `<p>${inlineMarkdown(safeLine)}</p>`;
   }
 
-  // FIX: Render unclosed code blocks LIVE during active streaming!
+  if (inTable) resultHtml += `</tbody></table></div>`;
+
+  // FIX: If a code block is currently streaming and hasn't closed yet, render it live!
   if (inCode) {
-    const safeCode = escapeHtml(code);
-    html += `<pre class="code-block streaming-active"><code class="language-${language}">${safeCode}<span class="stream-cursor"></span></code></pre>`;
+    const safeCode = escapeHtml(code.trimEnd());
+    const langLower = language.toLowerCase();
+    const runBtn = langLower === 'html' ? `<button class="code-run" data-run-html="${encodeURIComponent(code)}">Run</button>` : '';
+    resultHtml += `<pre class="code-block streaming-active">${runBtn}<button class="code-copy" data-code-copy="${encodeURIComponent(code)}">Copy</button><code class="language-${language}">${safeCode}</code></pre>`;
   }
 
-  return html.replace(/(<li>.*?<\/li>\s*)+/g, list => `<ul>${list}</ul>`);
+  // Restore SVG graphics
+  resultHtml = resultHtml.replace(/%%SVG_BLOCK_(\d+)%%/g, (_, idx) => svgBlocks[parseInt(idx)]);
+
+  return resultHtml.replace(/(<li>.*?<\/li>\s*)+/g, list => `<ul>${list}</ul>`);
 }
 
 function inlineMarkdown(text) {
@@ -570,82 +724,20 @@ function inlineMarkdown(text) {
 }
 
 // =========================================================
-// Enhanced Markdown Parser with Mermaid & Math Support
+// Chart JSON Sanitizer
 // =========================================================
-function renderMarkdownEnhanced(input = '') {
-  if (!input) return '';
-  
-  // Process block-level math first ($$ ... $$) to avoid conflicts
-  let html = input;
-  
-  // Replace codeblocks with placeholders to avoid processing math inside them
-  const codeBlocks = [];
-  let codeBlockIndex = 0;
-  html = html.replace(/```([\s\S]*?)```/g, (match) => {
-    const placeholder = `%%CODEBLOCK_${codeBlockIndex}%%`;
-    codeBlocks.push(match);
-    codeBlockIndex++;
-    return placeholder;
-  });
-
-  // Convert block math $$ ... $$ to rendered KaTeX
-  if (window.katex) {
-    html = html.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
-      try {
-        return `<div class="math-block">${window.katex.renderToString(math, { displayMode: true, throwOnError: false })}</div>`;
-      } catch (e) {
-        return `<div class="math-block math-error">${escapeHtml(math)}</div>`;
-      }
-    });
-
-    // Inline math $ ... $
-    html = html.replace(/\$([^\$\n]+?)\$/g, (match, math) => {
-      try {
-        return window.katex.renderToString(math, { displayMode: false, throwOnError: false });
-      } catch (e) {
-        return `$${escapeHtml(math)}$`;
-      }
-    });
-  }
-
-  // Restore code blocks
-  html = html.replace(/%%CODEBLOCK_(\d+)%%/g, (match, idx) => codeBlocks[parseInt(idx)]);
-
-  // Run through normal markdown renderer
-  html = renderMarkdown(html);
-
-  // Process Mermaid Diagram Blocks - replaces the base renderer's output
-  html = html.replace(/<pre class="code-block"><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
-    const rawMermaid = decodeURIComponent(code).replace(/</g, '<').replace(/>/g, '>').replace(/&/g, '&');
-    const id = `mermaid_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    
-    setTimeout(() => {
-      if (window.mermaid) {
-        window.mermaid.initialize({ 
-          startOnLoad: false, 
-          theme: document.documentElement.dataset.theme === 'light' ? 'default' : 'dark',
-          securityLevel: 'loose'
-        });
-        const el = document.getElementById(id);
-        if (el) {
-          window.mermaid.render(`${id}_svg`, rawMermaid).then(({ svg }) => {
-            el.innerHTML = svg;
-          }).catch(err => {
-            el.innerHTML = `<pre class="mermaid-error">Diagram render error</pre>`;
-          });
-        }
-      }
-    }, 100);
-
-    return `<div class="mermaid-container" id="${id}"><div class="typing">Rendering Diagram...</div></div>`;
-  });
-
-  return html;
+// Fixes common LLM markdown mistakes (trailing commas, stray whitespace)
+// so JSON.parse() succeeds and charts render on the first attempt.
+function sanitizeChartJson(raw = '') {
+  return String(raw)
+    .replace(/,\s*}/g, '}')   // Remove trailing commas before }
+    .replace(/,\s*\]/g, ']')  // Remove trailing commas before ]
+    .trim();
 }
 
 // 4. Store (State Management)
 const defaults = {
-  chats: [], activeChatId: null, files: [], projects: [], route: 'chat',
+  chats: [], activeChatId: null, files: [], route: 'chat',
   model: 'pro', temperature: 0.7, topP: 0.9, autoScroll: true,
   theme: 'dark', density: 'comfortable', motion: true, tags: {},
   streaming: false,
@@ -760,11 +852,16 @@ class Store {
     return this.state;
   }
 
-  persist() {
-    const json = JSON.stringify(this.state);
-    if (!writeStorage(CONFIG.storage.state, json)) {
-      console.error('[Berto] State save failed');
-      toast('Storage unavailable. Data may not persist.', 'error');
+persist() {
+    try {
+      const json = JSON.stringify(this.state);
+      if (!writeStorage(CONFIG.storage.state, json)) {
+        console.warn('[Berto] LocalStorage full. Backing up active state to IndexedDB...');
+        // Backup active chats to IndexedDB when localStorage is 100% full
+        dbStorage.set('settings', 'berto-active-state', this.state).catch(() => {});
+      }
+    } catch (e) {
+      console.error('[Berto] State stringify/save error:', e);
     }
     this.listeners.forEach(listener => listener(this.state));
   }
@@ -883,23 +980,6 @@ class Store {
     dbStorage.remove('files', name).catch(() => {});
   }
 
-  addProject(project) {
-    this.state.projects.push(project);
-    this.persist();
-  }
-
-  updateProject(index, project) {
-    if (this.state.projects[index]) {
-      this.state.projects[index] = project;
-      this.persist();
-    }
-  }
-
-  removeProject(index) {
-    this.state.projects.splice(index, 1);
-    this.persist();
-  }
-
   exportData() {
     return JSON.stringify({ ...this.state, writingProfile: this.profile }, null, 2);
   }
@@ -916,7 +996,6 @@ class Store {
       renderChats();
       renderMessages();
       renderFiles();
-      renderProjects();
       renderWritingProfile();
       toast('Workspace imported successfully!');
       return true;
@@ -978,33 +1057,47 @@ class ModelRouter {
     this.abortController = new AbortController();
     const signal = externalSignal || this.abortController.signal;
 
-    const userModel = CONFIG.models.find(m => m.id === preferred);
-    const fallbackModel = CONFIG.models.find(m => m.id === 'fallback');
-    if (!userModel) throw new ApiError(`Model "${preferred}" not found.`, 'CONFIGURATION');
+    // Create full fallback sequence: Selected Model -> Alternate Models
+    const primaryModel = CONFIG.models.find(m => m.id === preferred) || CONFIG.models[0];
+    const alternateModels = CONFIG.models.filter(m => m.id !== primaryModel.id);
+    const modelOrder = [primaryModel, ...alternateModels];
 
-    const modelOrder = [userModel];
-    if (fallbackModel) modelOrder.push(fallbackModel);
+    let lastError = null;
 
-    let lastError;
     for (const model of modelOrder) {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
       if (this.remaining(model) <= 0) {
-        lastError = new ApiError(`Your daily limit for ${model.label} (${model.dailyLimit}) is used up.`, 'QUOTA');
+        lastError = new ApiError(`Daily limit reached for ${model.label}.`, 'QUOTA');
         continue;
       }
+
       for (let attempt = 0; attempt < CONFIG.maxRetries; attempt += 1) {
         try {
           const result = await this.callModel({ key, model, prompt, system, history, stream, temperature, topP, onText, signal, images });
+          
+          // Ensure response is not empty
+          if (!result.text || !result.text.trim()) {
+            throw new ApiError(`Model ${model.label} returned an empty response.`, 'EMPTY_RESPONSE', true);
+          }
+
           this.consume(model);
           return { ...result, model: model.label, modelId: model.id };
         } catch (error) {
           lastError = error;
-          if (error.name === 'AbortError' || error.code === 'CONFIGURATION') throw error;
-          if (!error.retryable) break;
-          await sleep(2 ** attempt * 500, signal);
+          if (error.name === 'AbortError') throw error;
+          console.warn(`[Berto] ${model.label} attempt ${attempt + 1} failed:`, error.message);
+          await sleep(600, signal);
         }
       }
+
+      // If primary model failed all attempts, notify and try next fallback model
+      if (modelOrder.indexOf(model) < modelOrder.length - 1) {
+        toast(`${model.label} stalled. Automatically switching to fallback model...`, 'warn');
+      }
     }
-    throw lastError || new ApiError('No model could complete the request.', 'UNAVAILABLE');
+
+    throw lastError || new ApiError('All models failed to respond. Please check your API key or connection.', 'UNAVAILABLE');
   }
 
   stop() {
@@ -1125,7 +1218,7 @@ class ModelRouter {
                       prompt: { type: "STRING", description: "Topic/prompt for Writing Studio or question to analyze with snapped photo" },
                       value: { type: "STRING", description: "Text or value to insert" },
                       target: { type: "STRING", description: "Element ID, selector, or label" },
-                      view: { type: "STRING", description: "View name: 'chat', 'writing', 'files', 'projects', 'voice', 'settings'" }
+                      view: { type: "STRING", description: "View name: 'chat', 'writing', 'files', 'voice', 'settings'" }
                     },
                     required: ["action"]
                   }
@@ -1144,29 +1237,47 @@ class ModelRouter {
     const decoder = new TextDecoder();
     let buffer = '';
     let output = '';
+    let receivedChunk = false;
 
-    while (true) {
-      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        const raw = line.replace(/^data:\s*/, '').trim();
-        if (!raw || raw === '[DONE]') continue;
-        try {
-          const data = JSON.parse(raw);
-          const text = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || '';
-          if (text) {
-            output += text;
-            onText?.(output);
-          }
-        } catch (e) {}
+    // First-token watchdog: If no data arrives in 12s, abort to trigger Fallback Model
+    const firstTokenWatchdog = setTimeout(() => {
+      if (!receivedChunk) {
+        reader.cancel('First token watchdog timeout');
       }
+    }, 12000);
+
+    try {
+      while (true) {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        if (!receivedChunk) {
+          receivedChunk = true;
+          clearTimeout(firstTokenWatchdog);
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const raw = line.replace(/^data:\s*/, '').trim();
+          if (!raw || raw === '[DONE]') continue;
+          try {
+            const data = JSON.parse(raw);
+            const text = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || '';
+            if (text) {
+              output += text;
+              onText?.(output);
+            }
+          } catch (e) {}
+        }
+      }
+    } finally {
+      clearTimeout(firstTokenWatchdog);
     }
+
     return { text: output, tokens: 0 };
   }
 }
@@ -1420,484 +1531,8 @@ function getUiStateContext() {
     artifactContentPreview: artifactContent,
     activeChatTitle: store.state.chats.find(c => c.id === store.state.activeChatId)?.title || '',
     messageCount: store.messages.length,
-    fileCount: store.state.files.length,
-    projectCount: store.state.projects.length,
-    taskCount: getKanbanTasks().length
+    fileCount: store.state.files.length
   });
-}
-
-// =========================================================
-// CINEMATIC KEYNOTE SHOWCASE DIRECTOR
-// =========================================================
-
-class CinematicDirector {
-  constructor() {
-    this.cursorEl = null;
-    this.spotlightEl = null;
-    this.hudEl = null;
-    this.isActive = false;
-  }
-
-  initOverlay() {
-    if ($('#cinematic-hud')) return;
-
-    // 1. Spotlight Mask
-    this.spotlightEl = document.createElement('div');
-    this.spotlightEl.id = 'cinematic-spotlight';
-    this.spotlightEl.className = 'cinematic-spotlight';
-
-    // 2. Animated Laser Cursor
-    this.cursorEl = document.createElement('div');
-    this.cursorEl.id = 'cinematic-cursor';
-    this.cursorEl.className = 'cinematic-cursor';
-    this.cursorEl.innerHTML = `
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="#82f3d0" stroke="#08271f" stroke-width="1.8"/>
-      </svg>
-      <div class="cursor-ripple"></div>
-    `;
-
-    // 3. Lower-Third Keynote HUD Banner
-    this.hudEl = document.createElement('div');
-    this.hudEl.id = 'cinematic-hud';
-    this.hudEl.className = 'cinematic-hud';
-    this.hudEl.innerHTML = `
-      <div class="hud-content">
-        <span class="hud-badge">BERTO KEYNOTE</span>
-        <span class="hud-title" id="hud-stage-title">Initializing Showcase...</span>
-        <span class="hud-subtitles" id="hud-subtitles"></span>
-      </div>
-      <div class="hud-controls">
-        <div class="hud-progress-dots" id="hud-progress-dots"></div>
-        <button class="hud-ctrl-btn" id="hud-prev-btn" title="Previous Stage" onclick="window.cinematicDirector.jumpToStage(-1)">
-          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
-        </button>
-        <button class="hud-ctrl-btn" id="hud-pause-btn" title="Pause / Resume" onclick="window.cinematicDirector.togglePause()">
-          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-        </button>
-        <button class="hud-ctrl-btn" id="hud-next-btn" title="Next Stage" onclick="window.cinematicDirector.jumpToStage(1)">
-          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
-        </button>
-        <button class="hud-exit-btn" onclick="window.cinematicDirector.stopShowcase()">Exit Keynote</button>
-      </div>
-    `;
-
-    // 4. Keyboard On-Screen Display (OSD) Overlay
-    this.osdEl = document.createElement('div');
-    this.osdEl.id = 'cinematic-osd';
-    this.osdEl.className = 'cinematic-osd';
-    this.osdEl.style.display = 'none';
-
-    document.body.appendChild(this.spotlightEl);
-    document.body.appendChild(this.cursorEl);
-    document.body.appendChild(this.hudEl);
-    document.body.appendChild(this.osdEl);
-
-    this.cursorEl.style.left = '50vw';
-    this.cursorEl.style.top = '100vh';
-  }
-
-  destroyOverlay() {
-    this.spotlightEl?.remove();
-    this.cursorEl?.remove();
-    this.hudEl?.remove();
-    this.osdEl?.remove();
-    this.isActive = false;
-  }
-
-  setHUD(title) {
-    const titleEl = $('#hud-stage-title');
-    if (titleEl) titleEl.innerHTML = title;
-  }
-
-  showOSDText(text, durationMs = 1200) {
-    if (!this.osdEl) return;
-    this.osdEl.textContent = text;
-    this.osdEl.style.display = 'block';
-    this.osdEl.classList.add('fade-in');
-    setTimeout(() => {
-      this.osdEl.style.display = 'none';
-      this.osdEl.classList.remove('fade-in');
-    }, durationMs);
-  }
-
-  _triggerClickRipple(x, y) {
-    const ripple = document.createElement('div');
-    ripple.className = 'cinematic-click-ripple';
-    ripple.style.left = `${x}px`;
-    ripple.style.top = `${y}px`;
-    document.body.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 600);
-  }
-
-  async glideTo(selector, click = true, durationMs = 650) {
-    const target = await waitForElement(selector, 2000);
-    if (!target || !this.cursorEl) return null;
-
-    const rect = target.getBoundingClientRect();
-    const targetX = rect.left + rect.width / 2;
-    const targetY = rect.top + rect.height / 2;
-
-    // Move Aperture Spotlight to target center
-    if (this.spotlightEl) {
-      this.spotlightEl.style.setProperty('--spotlight-x', `${targetX}px`);
-      this.spotlightEl.style.setProperty('--spotlight-y', `${targetY}px`);
-      this.spotlightEl.style.setProperty('--spotlight-radius', `${Math.max(rect.width, rect.height, 120)}px`);
-    }
-
-    // Smooth Cursor Glide
-    this.cursorEl.style.transition = `all ${durationMs}ms cubic-bezier(.22, .8, .2, 1)`;
-    this.cursorEl.style.left = `${targetX}px`;
-    this.cursorEl.style.top = `${targetY}px`;
-
-    await sleep(durationMs);
-
-    target.classList.add('cinematic-target-glow');
-    setTimeout(() => target.classList.remove('cinematic-target-glow'), 1200);
-
-    if (click) {
-      this.cursorEl.classList.add('clicking');
-      this._triggerClickRipple(targetX, targetY);
-      target.focus?.();
-      target.click();
-      await sleep(180);
-      this.cursorEl.classList.remove('clicking');
-    }
-
-    return target;
-  }
-
-  // Pure audio speech output — NO microphone permission required during presentation!
-  // Uses Web Speech API onboundary for word-precise subtitle synchronization
-  speak(text) {
-    return new Promise((resolve) => {
-      // Show Subtitles in HUD
-      const hudSubtitles = $('#hud-subtitles') || (() => {
-        const sub = document.createElement('span');
-        sub.id = 'hud-subtitles';
-        sub.className = 'hud-subtitles';
-        $('.hud-content')?.appendChild(sub);
-        return sub;
-      })();
-      
-      if (hudSubtitles) hudSubtitles.textContent = text;
-
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-
-        const voices = window.speechSynthesis.getVoices();
-        const englishVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha')));
-        if (englishVoice) utterance.voice = englishVoice;
-
-        let hasResolved = false;
-        let wordIndex = 0;
-        const words = text.split(/\s+/);
-
-        // Word-Boundary Precise Subtitle Sync
-        // Fires on each word boundary, updating the HUD subtitle in real-time
-        utterance.onboundary = (event) => {
-          if (event.name === 'word' && event.charIndex !== undefined) {
-            // Find the word at this char index for precise subtitle tracking
-            const remaining = text.slice(event.charIndex);
-            const currentWord = remaining.split(/\s+/)[0] || '';
-            if (hudSubtitles && currentWord) {
-              // Show the current word being spoken with a subtle highlight
-              hudSubtitles.textContent = currentWord;
-              hudSubtitles.classList.add('is-speaking');
-            }
-          }
-        };
-
-        utterance.onend = () => { 
-          if (hudSubtitles) {
-            hudSubtitles.textContent = text;
-            hudSubtitles.classList.remove('is-speaking');
-          }
-          if (!hasResolved) { hasResolved = true; resolve(); } 
-        };
-        utterance.onerror = () => { 
-          if (hudSubtitles) hudSubtitles.classList.remove('is-speaking');
-          if (!hasResolved) { hasResolved = true; resolve(); } 
-        };
-
-        window.speechSynthesis.speak(utterance);
-        setTimeout(() => { if (!hasResolved) { hasResolved = true; resolve(); } }, 10000);
-      } else {
-        resolve();
-      }
-    });
-  }
-
-  // Interactive Keynote HUD Controls
-  jumpToStage(direction) {
-    if (!this.isActive) return;
-    window.speechSynthesis?.cancel();
-    this._pendingJump = direction;
-    this._jumpRequested = true;
-    toast(direction > 0 ? 'Skipping to next stage...' : 'Going to previous stage...', 'info');
-  }
-
-  togglePause() {
-    if (!this.isActive) return;
-    this.isPaused = !this.isPaused;
-    const pauseBtn = $('#hud-pause-btn');
-    if (pauseBtn) {
-      pauseBtn.innerHTML = this.isPaused
-        ? `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 20 5 3"/></svg>`
-        : `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`;
-    }
-    if (this.isPaused) {
-      window.speechSynthesis?.cancel();
-      toast('Keynote paused', 'info');
-    } else {
-      toast('Keynote resumed', 'info');
-    }
-  }
-
-  async waitIfPaused() {
-    while (this.isPaused && this.isActive) {
-      await sleep(200);
-    }
-  }
-
-  updateProgressDots(currentStage, totalStages) {
-    const dotsContainer = $('#hud-progress-dots');
-    if (!dotsContainer) return;
-    dotsContainer.innerHTML = '';
-    for (let i = 0; i < totalStages; i++) {
-      const dot = document.createElement('span');
-      dot.className = 'hud-dot';
-      if (i < currentStage) dot.classList.add('completed');
-      if (i === currentStage) dot.classList.add('active');
-      dotsContainer.appendChild(dot);
-    }
-  }
-
-  stopShowcase() {
-    this.isActive = false;
-    this.isPaused = false;
-    window.speechSynthesis?.cancel();
-    if (voiceEngineInstance?.isListening) voiceEngineInstance.stopListening();
-    this.destroyOverlay();
-    toast('Keynote Showcase exited', 'info');
-  }
-}
-
-window.cinematicDirector = new CinematicDirector();
-
-// =========================================================
-// CHOREOGRAPHED SHOWCASE TIMELINE
-// =========================================================
-
-async function runFeatureShowcase(customRequest = '') {
-  const director = window.cinematicDirector;
-  director.isActive = true;
-  director.initOverlay();
-
-  const { name: userName } = getUserInfo();
-
-  // DYNAMIC AI-COMPOSED KEYNOTES
-  // If a custom request is provided, generate a tailored sequence on the fly
-  if (customRequest && typeof customRequest === 'string' && customRequest.trim()) {
-    try {
-      const key = api.key();
-      if (key) {
-        const result = await api.request({
-          prompt: `Generate a JSON array of UI automation steps to demonstrate this workflow in the Berto AI Workspace: "${customRequest}"
-
-Return ONLY a valid JSON array. Each step must use one of these action types:
-- {"action":"navigate","view":"chat"|"writing"|"files"|"projects"|"voice"|"settings"}
-- {"action":"type","selector":"#prompt"|"#writing-input","value":"text"}
-- {"action":"click","selector":"#send-button"|"#writing-generate"|"#writing-mode"}
-- {"action":"use_writing_studio","format":"Essay"|"Email"|"Blog"|"Report"|"Resume","prompt":"topic"}
-- {"action":"add_task","title":"Task Name","status":"todo"}
-- {"action":"set_theme","value":"dark"|"light"}
-- {"action":"patch_artifact","selector":"CSS_SELECTOR","html":"NEW_HTML"}
-- {"action":"open_camera"}
-- {"action":"snap_photo","countdown":2}
-- {"action":"new_chat"}
-- {"action":"send_chat","value":"message text"}
-
-Keep it to 4-8 steps that tell a compelling story about the requested workflow.`,
-          system: 'You are a keynote choreographer. Output ONLY valid JSON. No markdown, no preamble.',
-          preferred: store.state.model,
-          temperature: 0.4
-        });
-
-        const jsonMatch = result.text.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const actions = JSON.parse(jsonMatch[0]);
-          if (Array.isArray(actions) && actions.length > 0) {
-            director.setHUD(`Custom Keynote: <strong>${escapeHtml(customRequest.slice(0, 40))}</strong>`);
-            await director.speak(`Let me demonstrate how to ${customRequest}. Watch closely!`);
-            await executeUiSequence(actions);
-            director.setHUD(`Custom Keynote Complete`);
-            await director.speak(`That's how you ${customRequest}. Would you like me to walk through anything else?`);
-            director.destroyOverlay();
-            toast('Custom Keynote complete!', 'success');
-            return;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Custom keynote generation failed, falling back to default showcase:', err);
-    }
-  }
-
-  try {
-    // ---------------------------------------------------------
-    // INTRO
-    // ---------------------------------------------------------
-    director.setHUD(`Welcome, <strong>${userName}</strong> — Berto AI Keynote`);
-    route('voice');
-    await sleep(500);
-
-    await Promise.all([
-      director.speak(`Hey ${userName}! Welcome to Berto AI Workspace. Watch closely as I take control and demonstrate what we can create together.`),
-      (async () => {
-        await director.glideTo('#voice-canvas-visualizer', false, 700);
-      })()
-    ]);
-
-    if (!director.isActive) return;
-
-    // ---------------------------------------------------------
-    // STAGE 1: Autonomous Agent & Live Split-Screen Artifacts
-    // ---------------------------------------------------------
-    director.setHUD(`Stage 1/4: <strong>Autonomous Agent & Split-Screen Artifacts</strong>`);
-
-    const stage1Speech = director.speak(
-      `I can construct interactive applications and render split-screen previews right beside our conversation.`
-    );
-
-    await sleep(300);
-    route('chat');
-    await sleep(300);
-
-    store.addChat('Keynote Showcase');
-    renderChats();
-    renderMessages();
-
-    await director.glideTo('#prompt', true, 500);
-    const chatPrompt = "Build an interactive workspace analytics widget.";
-    await typeTextToInput('#prompt', chatPrompt, 16);
-
-    await director.glideTo('#send-button', true, 400);
-    if ($('#prompt')) $('#prompt').value = '';
-    updateCount();
-    appendMessage({ role: 'user', content: chatPrompt });
-
-    const assistantMsg = store.addMessage({ role: 'assistant', content: '', status: 'streaming' });
-    renderMessages();
-    const assistantNode = $(`[data-message="${assistantMsg.id}"] .message-body`);
-
-    const mockChatResponse = `Generated your **Workspace Analytics Artifact**. Opening live split-screen preview...`;
-    await typeTextToElement(assistantNode, mockChatResponse, 10);
-    store.updateMessage(assistantMsg.id, { content: mockChatResponse, status: 'complete' });
-
-    openArtifact(`
-      <div style="font-family:system-ui, sans-serif; padding:18px; background:#0e1411; color:#82f3d0; border-radius:14px; border:1px solid rgba(130,243,208,0.2);">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-          <h3 style="margin:0; color:#fff; font-size:15px; display:flex; align-items:center; gap:6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:var(--accent);"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
-            Live Workspace Metrics
-          </h3>
-          <span style="background:rgba(130,243,208,0.15); padding:3px 8px; border-radius:12px; font-size:10px; font-weight:700;">ACTIVE</span>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div style="background:#151e1a; padding:12px; border-radius:10px; border:1px solid rgba(228,255,243,0.08);">
-            <small style="color:#8e9d95; display:block; margin-bottom:4px;">Tokens Processed</small>
-            <strong style="font-size:16px; color:#fff;">14,820</strong>
-          </div>
-          <div style="background:#151e1a; padding:12px; border-radius:10px; border:1px solid rgba(228,255,243,0.08);">
-            <small style="color:#8e9d95; display:block; margin-bottom:4px;">Stream Latency</small>
-            <strong style="font-size:16px; color:#82f3d0;">16ms</strong>
-          </div>
-        </div>
-      </div>
-    `, 'Workspace Analytics Widget');
-
-    await director.glideTo('#artifact-drawer', false, 600);
-    await stage1Speech;
-    if (!director.isActive) return;
-
-    // ---------------------------------------------------------
-    // STAGE 2: Ambient Liquid Theme Engine
-    // ---------------------------------------------------------
-    director.setHUD(`Stage 2/4: <strong>Ambient Liquid Theme Engine</strong>`);
-
-    await Promise.all([
-      director.speak(`Notice how the interface adapts. I can trigger ambient liquid theme transitions on demand.`),
-      (async () => {
-        await sleep(500);
-        const currentTheme = document.documentElement.dataset.theme || 'dark';
-        savePreferences({ theme: currentTheme === 'dark' ? 'light' : 'dark' });
-        await sleep(1500);
-        savePreferences({ theme: currentTheme });
-      })()
-    ]);
-
-    if (!director.isActive) return;
-
-    // ---------------------------------------------------------
-    // STAGE 3: Ghostwriter & Voice Cloning Studio
-    // ---------------------------------------------------------
-    director.setHUD(`Stage 3/4: <strong>Ghostwriter & Voice Cloning Studio</strong>`);
-
-    const stage3Speech = director.speak(
-      `In the Writing Studio, I analyze your sample writing to clone your sentence structure and tone.`
-    );
-
-    closeArtifact();
-    route('writing');
-    await sleep(300);
-
-    await director.glideTo('#writing-mode', true, 450);
-    const modeSelect = $('#writing-mode');
-    if (modeSelect) {
-      modeSelect.value = 'Executive Summary';
-      modeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-
-    await director.glideTo('#writing-input', true, 450);
-    const writingInput = $('#writing-input');
-    if (writingInput) {
-      await typeTextToInput(writingInput, `Berto combines local privacy, real-time voice, and UI automation.`, 12);
-    }
-
-    const writingOutput = $('#writing-output');
-    if (writingOutput) {
-      writingOutput.hidden = false;
-      await typeTextToElement(writingOutput, `### Executive Summary\n\n- **Architecture**: Zero-telemetry local state engine.\n- **Multimodal**: Native camera, screen share, and audio streaming.`, 10);
-    }
-
-    await stage3Speech;
-    if (!director.isActive) return;
-
-    // ---------------------------------------------------------
-    // STAGE 4: Keynote Complete -> NOW prompt for Mic Live Mode
-    // ---------------------------------------------------------
-    director.setHUD(`Stage 4/4: <strong>Berto Live Audio & Vision Ready</strong>`);
-
-    route('voice');
-    await director.glideTo('#voice-canvas-visualizer', false, 600);
-
-    await director.speak(
-      `And best of all, we can converse in real time with live vision processing. What would you like to build today?`
-    );
-
-    // Keynote ends, remove presentation HUD overlay
-    director.destroyOverlay();
-
-    // Show a completion toast instead of auto-opening the mic
-    toast('Keynote Showcase complete! Click "Start Speaking" anytime to begin.', 'success');
-
-  } catch (err) {
-    console.error('Keynote showcase error:', err);
-    director.destroyOverlay();
-  }
 }
 
 let cameraStream = null;
@@ -1998,11 +1633,10 @@ function route(routeName) {
   store.update({ route: routeName });
   $$('.view').forEach(view => view.classList.toggle('active', view.dataset.view === routeName));
   $$('.nav-item[data-route]').forEach(button => button.classList.toggle('active', button.dataset.route === routeName));
-  const routeLabels = { chat: 'Chats', writing: 'Writing Studio', files: 'Files', projects: 'Projects', voice: 'Voice', settings: 'Settings' };
+  const routeLabels = { chat: 'Chats', writing: 'Writing Studio', files: 'Files', voice: 'Voice', settings: 'Settings' };
   if ($('#breadcrumb')) $('#breadcrumb').textContent = routeLabels[routeName] || routeName[0].toUpperCase() + routeName.slice(1);
   closeMobile();
   if (routeName === 'files') renderFiles();
-  if (routeName === 'projects') renderProjects();
   if (routeName === 'settings') renderSettings();
   if (routeName === 'voice') initVoiceView();
 }
@@ -2188,7 +1822,7 @@ function messageMarkup(message) {
       <div class="message-stack">
         ${imagesHtml}
         ${filesHtml}
-        <div class="message-body">${renderMarkdown(stripJsonActions(message.content || ''))}</div>
+        <div class="message-body">${typeof renderMarkdownEnhanced === 'function' ? renderMarkdownEnhanced(stripJsonActions(message.content || '')) : renderMarkdown(stripJsonActions(message.content || ''))}</div>
         ${meta}
         <div class="message-actions">
           ${artifactBtn}
@@ -2217,7 +1851,7 @@ function updateMessageView(id, content, extra = {}) {
   const node = $(`[data-message="${id}"]`);
   if (node) {
     const body = $('.message-body', node);
-    if (body) body.innerHTML = renderMarkdown(stripJsonActions(content));
+    if (body) body.innerHTML = typeof renderMarkdownEnhanced === 'function' ? renderMarkdownEnhanced(stripJsonActions(content)) : renderMarkdown(stripJsonActions(content));
   }
 }
 
@@ -2332,7 +1966,6 @@ async function waitForElement(selector, timeoutMs = 3000) {
     'chat': '[data-route="chat"]',
     'writing': '[data-route="writing"]',
     'files': '[data-route="files"]',
-    'projects': '[data-route="projects"]',
     'voice': '[data-route="voice"]',
     'settings': '[data-route="settings"]'
   };
@@ -2636,16 +2269,6 @@ async function executeUiSequence(actions) {
         }
         toast(`${LOGO_HTML} Writing Studio active — drafting ${format}...`);
       }
-      else if (type === 'add_task' || type === 'create_task') {
-        const title = step.title || step.value || 'New Task';
-        const desc = step.desc || step.text || '';
-        const status = step.status || 'todo';
-        
-        const tasks = getKanbanTasks();
-        tasks.push({ id: `task_${Date.now()}`, title, desc, status });
-        saveKanbanTasks(tasks);
-        toast(`${LOGO_HTML} Added task "${title}" to ${status}`);
-      }
       else if (type === 'rename_chat') {
         const targetId = step.id || store.state.activeChatId;
         const newTitle = step.title || step.value;
@@ -2734,7 +2357,7 @@ async function executeUiSequence(actions) {
           description: type === 'clear_all_chats' 
             ? 'This will permanently delete ALL chat history. This action cannot be undone.'
             : type === 'clear_data'
-              ? 'This will permanently delete ALL local workspace data including chats, files, projects, and settings.'
+              ? 'This will permanently delete ALL local workspace data including chats, files, and settings.'
               : `This will permanently delete the chat "${store.state.chats.find(c => c.id === (step.id || step.chatId || store.state.activeChatId))?.title || 'current chat'}".`,
           actionType: type
         });
@@ -2890,37 +2513,15 @@ async function send(text) {
     text = promptEl ? promptEl.value.trim() : '';
   }
 
-  // --- FOOLPROOF DEMO / TOUR TRIGGER ---
-  const lowerPrompt = text.toLowerCase().trim();
-  if (/\b(show me a demo|demo|give me a tour|tour|showcase|show off|demonstrate|walk me through|custom keynote)\b/i.test(lowerPrompt) || /\b(showcase|demo) (how|the|how to)\b/i.test(lowerPrompt)) {
-    const promptInput = $('#prompt');
-    if (promptInput) promptInput.value = '';
-    updateCount();
-    resizePrompt();
-    showWelcome(false);
-
-    // Render user message and launch showcase immediately
-    appendMessage({ role: 'user', content: text });
-
-    // Extract the custom workflow request (e.g. "showcase how to build a React dashboard")
-    let customRequest = '';
-    const howMatch = text.match(/(?:show(?:case)?|demonstrate|walk me through|demo)[:\s]+(?:how to |the |a |an )?(.+)/i);
-    if (howMatch && howMatch[1]) {
-      customRequest = howMatch[1].trim();
-    }
-    
-    runFeatureShowcase(customRequest);
-    return;
-  }
-
   if (store.state.streaming) {
     api.stop();
     setGenerating(false);
     return;
   }
 
-  const personaEl = $('#persona-select');
-  const personaVal = personaEl ? personaEl.value : 'default';
+  const personaSelect = document.getElementById('persona-select');
+  const activeGemId = personaSelect ? personaSelect.value : 'default';
+  const activeGem = getAllGems().find(g => g.id === activeGemId) || BUILTIN_GEMS[0];
   const { name: userName, initial: userInitial } = getUserInfo();
 
   const baseSystemInstruction = `CURRENT USER
@@ -2948,15 +2549,11 @@ CORE PERSONALITY
 
 Your personality should be Professional, Friendly, Confident, Expressive, Intelligent, and Helpful. Speak naturally and conversationally.`;
 
-  const personaOverrides = {
-    default: '',
-    engineer: `\n\nYou are currently acting as a Senior Software Architect. Provide robust, clean, type-safe, and highly scalable code solutions with minimal fluff.`,
-    editor: `\n\nYou are currently acting as a Strict Copy Editor. Analyze text ruthlessly for clarity, tone, flow, and grammatical precision. Avoid AI cliches.`,
-    tutor: `\n\nYou are currently acting as a Socratic Learning Tutor. Guide the user by asking insightful questions that help them discover solutions independently.`,
-    designer: `\n\nYou are currently acting as a Principal UI/UX Architect. Focus on modern design systems, glassmorphic aesthetics, micro-interactions, and visual hierarchy.`
-  };
+  const gemSystemInstruction = activeGem.systemPrompt 
+    ? `\n\n━━━━━━━━━━━━━━━━━━\nACTIVE GEM INSTRUCTIONS (${activeGem.name.toUpperCase()})\n━━━━━━━━━━━━━━━━━━\n${activeGem.systemPrompt}` 
+    : '';
 
-  const personaSystemInstruction = baseSystemInstruction + (personaOverrides[personaVal] || personaOverrides.default);
+  const personaSystemInstruction = baseSystemInstruction + gemSystemInstruction;
 
   if (capturedPhotoBlob) {
     try {
@@ -3002,8 +2599,9 @@ Your personality should be Professional, Friendly, Confident, Expressive, Intell
       const content = a.content || '';
       // Only chunk if content is large (>1000 words)
       if (content && wordCount(content) > 1000 && text) {
-        const relevantContent = miniRag.getRelevantChunks(content, text, 3);
-        return `[Attached File: ${a.name}]\n${relevantContent}`;
+        // MiniRAG not available - use first 500 words as context
+        const words = content.trim().split(/\s+/).slice(0, 500).join(' ');
+        return `[Attached File: ${a.name}]\n${words}...`;
       }
       return `[Attached File: ${a.name}]\n${content}`;
     });
@@ -3099,6 +2697,8 @@ ${getUiStateContext()}
     system: `${personaSystemInstruction}
 ${perceptionContext}
 ${BERTO_CODE_POLICY}
+${GRAPH_INSTRUCTION}
+${LATEX_RULES}
 
 You have direct programmatic control over this web application interface.
 
@@ -3124,7 +2724,7 @@ CAMERA & SNAPSHOT RULES:
 AVAILABLE UI ACTIONS:
 - "type": { "action": "type", "selector": "#writing-input"|"#prompt"|"#search-input", "value": "text" }
 - "click": { "action": "click", "selector": "#send-button"|".chat-item"|"data-action" }
-- "navigate": { "action": "navigate", "view": "chat"|"writing"|"files"|"projects"|"voice"|"settings" }
+- "navigate": { "action": "navigate", "view": "chat"|"writing"|"files"|"voice"|"settings" }
 - "use_writing_studio": { "action": "use_writing_studio", "format": "Essay"|"Email"|"Blog"|"Report"|"Resume"|"Cover Letter", "prompt": "topic text" }
 - "set_name": { "action": "set_name", "value": "New Name" }
 - "set_theme": { "action": "set_theme", "value": "dark"|"light" }
@@ -3141,14 +2741,19 @@ AVAILABLE UI ACTIONS:
   }).then(async result => {
     await streamer.finish();
     
-    updateMessageView(assistant.id, result.text, { model: result.model, tokens: result.tokens, status: 'complete' });
+    // Fallback text check to prevent blank bubbles
+    const finalContent = (result.text && result.text.trim()) 
+      ? result.text 
+      : '⚠️ *No text was returned by the model. Please try submitting your query again.*';
 
-    const htmlCodeMatch = result.text.match(/```html[\r\n\s]([\s\S]*?)```/i);
+    updateMessageView(assistant.id, finalContent, { model: result.model, tokens: result.tokens, status: 'complete' });
+
+    const htmlCodeMatch = finalContent.match(/```html[\r\n\s]([\s\S]*?)```/i);
     if (htmlCodeMatch && htmlCodeMatch[1]) {
       openArtifact(htmlCodeMatch[1].trim(), 'Generated Component');
     }
 
-    const jsonMatch = result.text.match(/```json\n([\s\S]*?)\n```/);
+    const jsonMatch = finalContent.match(/```json\n([\s\S]*?)\n```/);
     if (jsonMatch) {
       try {
         const actions = JSON.parse(jsonMatch[1]);
@@ -3160,8 +2765,19 @@ AVAILABLE UI ACTIONS:
       }
     }
   }).catch(error => {
-    const message = error instanceof ApiError ? error.message : error.name === 'AbortError' ? 'Generation stopped.' : 'Berto could not complete that request.';
-    updateMessageView(assistant.id, `**${error.name === 'AbortError' ? 'Generation stopped' : 'Request unavailable'}**\n\n${message}`);
+    // Check if the user manually aborted the stream
+    if (error.name === 'AbortError') {
+      const node = $(`[data-message="${assistant.id}"] .message-body`);
+      if (node) {
+        // Append a subtle badge indicating it was stopped manually
+        node.innerHTML += `<span style="display:inline-block; margin-left:8px; font-size:10px; padding:2px 6px; border-radius:4px; background:var(--surface-3); color:var(--warn);">[Stopped by user]</span>`;
+      }
+      updateMessageView(assistant.id, streamer.renderedText, { status: 'complete' });
+    } else {
+      // It was an actual error
+      const message = error instanceof ApiError ? error.message : 'Berto could not complete that request.';
+      updateMessageView(assistant.id, `**Request unavailable**\n\n${message}`);
+    }
   }).finally(() => {
     setGenerating(false);
     activeRequest = null;
@@ -3234,7 +2850,7 @@ function openProfile() {
 
 function openImportModal() {
   openModal('Import Workspace Backup', `
-    <p class="modal-copy">Select or drop a <code>.json</code> backup file exported from Berto AI Workspace to restore your conversations, profile, files, and projects.</p>
+    <p class="modal-copy">Select or drop a <code>.json</code> backup file exported from Berto AI Workspace to restore your conversations, profile, and files.</p>
     <div id="import-drop-zone" style="border: 2px dashed var(--border, #333); padding: 30px; text-align: center; border-radius: 8px; cursor: pointer; margin-top: 12px;">
       <p style="margin: 0;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Drop your <strong>.json</strong> file here or click to browse</p>
       <input type="file" id="import-file-input" accept=".json" hidden>
@@ -3447,449 +3063,6 @@ function closeArtifact() {
   }
 }
 
-// ==========================================
-// SUPERCHARGED KANBAN TASK ENGINE
-// ==========================================
-
-function getKanbanTasks() {
-  return readStorage(`${INSTANCE_PREFIX}-kanban-tasks`, [
-    {
-      id: 'task_1',
-      title: 'Design Berto Workspace Architecture',
-      desc: 'Build local-first IndexedDB storage and multi-modal live stream context',
-      status: 'done',
-      priority: 'high',
-      tag: 'Feature',
-      dueDate: '',
-      subtasks: [
-        { text: 'Local IndexedDB setup', completed: true },
-        { text: 'Token streaming engine', completed: true }
-      ]
-    },
-    {
-      id: 'task_2',
-      title: 'Integrate Gemini 3.1 Flash Live Voice',
-      desc: 'Connect WebSockets for low-latency voice, camera vision, and screen sharing',
-      status: 'in-progress',
-      priority: 'urgent',
-      tag: 'AI',
-      dueDate: '',
-      subtasks: [
-        { text: 'WebSocket audio processor', completed: true },
-        { text: 'Real-time camera frame stream', completed: true },
-        { text: 'Voice persona selection', completed: false }
-      ]
-    },
-    {
-      id: 'task_3',
-      title: 'PWA Desktop Manifest & Offline SW',
-      desc: 'Configure service worker caching and offline fallback for instant desktop launches',
-      status: 'todo',
-      priority: 'medium',
-      tag: 'Docs',
-      dueDate: '',
-      subtasks: [
-        { text: 'Service worker precache', completed: false },
-        { text: 'Web App Manifest icons', completed: false }
-      ]
-    }
-  ]);
-}
-
-function saveKanbanTasks(tasks) {
-  writeStorage(`${INSTANCE_PREFIX}-kanban-tasks`, JSON.stringify(tasks));
-  renderKanbanBoard();
-}
-
-function renderKanbanBoard() {
-  const allTasks = getKanbanTasks();
-  const search = ($('#kanban-search')?.value || '').toLowerCase().trim();
-  const priorityFilter = $('#kanban-filter-priority')?.value || 'all';
-  const tagFilter = $('#kanban-filter-tag')?.value || 'all';
-
-  // Apply Search & Filters
-  const filteredTasks = allTasks.filter(t => {
-    const matchesSearch = !search || 
-      t.title.toLowerCase().includes(search) || 
-      t.desc.toLowerCase().includes(search) ||
-      (t.subtasks && t.subtasks.some(st => st.text.toLowerCase().includes(search)));
-
-    const matchesPriority = priorityFilter === 'all' || t.priority === priorityFilter;
-    const matchesTag = tagFilter === 'all' || t.tag === tagFilter;
-
-    return matchesSearch && matchesPriority && matchesTag;
-  });
-
-  const statuses = ['todo', 'in-progress', 'done'];
-
-  statuses.forEach(status => {
-    const listEl = $(`#tasks-${status}`);
-    const countEl = $(`#count-${status}`);
-    const tasksInCol = filteredTasks.filter(t => t.status === status);
-
-    if (countEl) countEl.textContent = tasksInCol.length;
-
-    if (listEl) {
-      listEl.innerHTML = tasksInCol.map(t => {
-        const priorityClass = `prio-${t.priority || 'medium'}`;
-        const subtasksTotal = t.subtasks ? t.subtasks.length : 0;
-        const subtasksDone = t.subtasks ? t.subtasks.filter(st => st.completed).length : 0;
-        const subtaskRatio = subtasksTotal ? Math.round((subtasksDone / subtasksTotal) * 100) : 0;
-
-        return `
-          <div class="kanban-card" draggable="true" 
-               ondragstart="handleKanbanDragStart(event, '${t.id}')"
-               onclick="openEditTaskModal('${t.id}')">
-            
-            <div class="task-badges">
-              <span class="priority-badge ${priorityClass}">${escapeHtml(t.priority || 'Medium')}</span>
-              ${t.tag ? `<span class="tag-badge">${escapeHtml(t.tag)}</span>` : ''}
-            </div>
-
-            <h4 class="kanban-card-title">${escapeHtml(t.title)}</h4>
-            ${t.desc ? `<p class="kanban-card-desc">${escapeHtml(t.desc)}</p>` : ''}
-
-            ${subtasksTotal > 0 ? `
-              <div class="subtask-progress">
-                <span>✓ ${subtasksDone}/${subtasksTotal}</span>
-                <div class="subtask-bar">
-                  <div class="subtask-fill" style="width: ${subtaskRatio}%"></div>
-                </div>
-              </div>
-            ` : ''}
-
-            <div class="task-card-footer">
-  <span class="task-due-date">
-    ${t.dueDate ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${escapeHtml(t.dueDate)}` : ''}
-  </span>
-  <div class="task-card-actions" onclick="event.stopPropagation()">
-    <button class="task-action-btn" onclick="openEditTaskModal('${t.id}')" title="Edit Task" aria-label="Edit Task">
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-</button>
-<button class="task-action-btn danger-hover" onclick="deleteTask('${t.id}')" title="Delete Task" aria-label="Delete Task">
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-</button>
-  </div>
-</div>
-          </div>
-        `;
-      }).join('') || `<p class="empty-copy">No tasks in ${status.replace('-', ' ')}</p>`;
-    }
-  });
-}
-
-// Drag & Drop Event Handlers
-function handleKanbanDragStart(event, taskId) {
-  event.dataTransfer.setData('text/plain', taskId);
-  event.dataTransfer.effectAllowed = 'move';
-}
-
-function handleKanbanDragOver(event) {
-  event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
-}
-
-function handleKanbanDragEnter(event) {
-  event.preventDefault();
-  const col = event.currentTarget.closest('.kanban-column');
-  if (col) col.classList.add('drag-over');
-}
-
-function handleKanbanDragLeave(event) {
-  const col = event.currentTarget.closest('.kanban-column');
-  if (col) col.classList.remove('drag-over');
-}
-
-function handleKanbanDrop(event, targetStatus) {
-  event.preventDefault();
-  const col = event.currentTarget.closest('.kanban-column');
-  if (col) col.classList.remove('drag-over');
-
-  const taskId = event.dataTransfer.getData('text/plain');
-  const tasks = getKanbanTasks();
-  const task = tasks.find(t => t.id === taskId);
-  
-  if (task && task.status !== targetStatus) {
-    task.status = targetStatus;
-    saveKanbanTasks(tasks);
-    toast(`Task moved to ${targetStatus.replace('-', ' ').toUpperCase()}`, 'info');
-  }
-}
-
-// Open Modal to Create or Edit Task
-function openEditTaskModal(taskId = null, defaultStatus = 'todo') {
-  const tasks = getKanbanTasks();
-  const task = tasks.find(t => t.id === taskId) || {
-    id: `task_${Date.now()}`,
-    title: '',
-    desc: '',
-    status: defaultStatus,
-    priority: 'medium',
-    tag: 'Feature',
-    dueDate: '',
-    subtasks: []
-  };
-
-  const isNew = !taskId;
-
-  const subtasksHtml = (task.subtasks || []).map((st, idx) => `
-    <div class="subtask-row">
-      <input type="checkbox" ${st.completed ? 'checked' : ''} onchange="toggleSubtaskInModal(${idx})">
-      <span class="${st.completed ? 'completed' : ''}">${escapeHtml(st.text)}</span>
-      <span class="subtask-delete" onclick="removeSubtaskInModal(${idx})">✕</span>
-    </div>
-  `).join('');
-
-  openModal(isNew ? 'Create New Task' : 'Edit Task Details', `
-    <div class="modal-label">
-      <span>Task Title</span>
-      <input class="search-input" id="modal-task-title" value="${escapeHtml(task.title)}" placeholder="e.g. Build authentication UI">
-    </div>
-
-    <div class="modal-label">
-      <span>Description & Notes</span>
-      <textarea class="search-input" id="modal-task-desc" rows="3" placeholder="Provide background or technical details...">${escapeHtml(task.desc)}</textarea>
-    </div>
-
-    <div class="profile-fields">
-      <div class="modal-label">
-        <span>Status</span>
-        <select id="modal-task-status">
-          <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>To Do</option>
-          <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
-          <option value="done" ${task.status === 'done' ? 'selected' : ''}>Completed</option>
-        </select>
-      </div>
-
-      <div class="modal-label">
-        <span>Priority</span>
-        <select id="modal-task-priority">
-          <option value="urgent" ${task.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
-          <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
-          <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
-          <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="profile-fields">
-      <div class="modal-label">
-        <span>Category Tag</span>
-        <select id="modal-task-tag">
-          <option value="Feature" ${task.tag === 'Feature' ? 'selected' : ''}>Feature</option>
-          <option value="Bug" ${task.tag === 'Bug' ? 'selected' : ''}>Bug</option>
-          <option value="Design" ${task.tag === 'Design' ? 'selected' : ''}>Design</option>
-          <option value="Research" ${task.tag === 'Research' ? 'selected' : ''}>Research</option>
-          <option value="Docs" ${task.tag === 'Docs' ? 'selected' : ''}>Docs</option>
-          <option value="AI" ${task.tag === 'AI' ? 'selected' : ''}>AI</option>
-        </select>
-      </div>
-
-      <div class="modal-label">
-        <span>Due Date</span>
-        <input type="date" class="search-input" id="modal-task-date" value="${task.dueDate || ''}">
-      </div>
-    </div>
-
-    <div class="modal-label">
-      <span>Subtasks & Checklist</span>
-      <div class="subtasks-checklist" id="modal-subtasks-list">
-        ${subtasksHtml || '<p class="empty-copy">No subtasks added yet</p>'}
-      </div>
-      <div style="display:flex; gap:8px; margin-top:8px;">
-        <input class="search-input" id="modal-new-subtask-text" placeholder="Add a subtask..." onkeydown="if(event.key==='Enter'){event.preventDefault();addSubtaskInModal();}">
-        <button class="button ghost" onclick="addSubtaskInModal()">Add</button>
-      </div>
-    </div>
-
-    <div class="modal-actions" style="justify-content:space-between; margin-top:20px;">
-      ${!isNew ? `<button class="button danger" onclick="deleteTask('${task.id}'); closeModal();">Delete Task</button>` : '<div></div>'}
-      <div style="display:flex; gap:10px;">
-        <button class="button ghost" onclick="closeModal()">Cancel</button>
-        <button class="button primary glow-btn" onclick="saveTaskFromModal('${task.id}', ${isNew})">Save Task</button>
-      </div>
-    </div>
-  `);
-
-  window._activeModalSubtasks = task.subtasks ? [...task.subtasks] : [];
-  setTimeout(() => $('#modal-task-title')?.focus(), 100);
-}
-
-function addSubtaskInModal() {
-  const input = $('#modal-new-subtask-text');
-  const text = input ? input.value.trim() : '';
-  if (!text) return;
-
-  window._activeModalSubtasks ||= [];
-  window._activeModalSubtasks.push({ text, completed: false });
-  input.value = '';
-
-  refreshModalSubtasksUI();
-}
-
-function toggleSubtaskInModal(index) {
-  if (window._activeModalSubtasks && window._activeModalSubtasks[index]) {
-    window._activeModalSubtasks[index].completed = !window._activeModalSubtasks[index].completed;
-    refreshModalSubtasksUI();
-  }
-}
-
-function removeSubtaskInModal(index) {
-  if (window._activeModalSubtasks) {
-    window._activeModalSubtasks.splice(index, 1);
-    refreshModalSubtasksUI();
-  }
-}
-
-function refreshModalSubtasksUI() {
-  const listEl = $('#modal-subtasks-list');
-  if (!listEl) return;
-
-  const html = (window._activeModalSubtasks || []).map((st, idx) => `
-    <div class="subtask-row">
-      <input type="checkbox" ${st.completed ? 'checked' : ''} onchange="toggleSubtaskInModal(${idx})">
-      <span class="${st.completed ? 'completed' : ''}">${escapeHtml(st.text)}</span>
-      <span class="subtask-delete" onclick="removeSubtaskInModal(${idx})">✕</span>
-    </div>
-  `).join('');
-
-  listEl.innerHTML = html || '<p class="empty-copy">No subtasks added yet</p>';
-}
-
-function saveTaskFromModal(taskId, isNew) {
-  const title = $('#modal-task-title')?.value.trim();
-  if (!title) {
-    return toast('Please provide a task title', 'error');
-  }
-
-  const desc = $('#modal-task-desc')?.value.trim() || '';
-  const status = $('#modal-task-status')?.value || 'todo';
-  const priority = $('#modal-task-priority')?.value || 'medium';
-  const tag = $('#modal-task-tag')?.value || 'Feature';
-  const dueDate = $('#modal-task-date')?.value || '';
-  const subtasks = window._activeModalSubtasks || [];
-
-  const tasks = getKanbanTasks();
-
-  if (isNew) {
-    tasks.push({ id: taskId, title, desc, status, priority, tag, dueDate, subtasks });
-  } else {
-    const idx = tasks.findIndex(t => t.id === taskId);
-    if (idx !== -1) {
-      tasks[idx] = { ...tasks[idx], title, desc, status, priority, tag, dueDate, subtasks };
-    }
-  }
-
-  saveKanbanTasks(tasks);
-  closeModal();
-  toast(isNew ? 'Task created' : 'Task updated', 'success');
-}
-
-function deleteTask(taskId) {
-  const tasks = getKanbanTasks().filter(t => t.id !== taskId);
-  saveKanbanTasks(tasks);
-  toast('Task deleted', 'info');
-}
-
-// Ask Berto AI to Solve/Draft the Task in Chat
-function askAiToSolveTask(taskId) {
-  const tasks = getKanbanTasks();
-  const task = tasks.find(t => t.id === taskId);
-  if (!task) return;
-
-  const promptText = `I have a task on my Project Board:
-- **Title**: ${task.title}
-- **Description**: ${task.desc || 'None'}
-- **Priority**: ${task.priority}
-- **Tag**: ${task.tag}
-
-Please execute this task or provide a comprehensive draft/solution for it.`;
-
-  route('chat');
-  send(promptText);
-}
-
-// Berto AI Task Generator / Auto-Breakdown Modal
-function openAiTaskBreakdownModal() {
-  openModal('✨ Berto AI Task Generator', `
-    <p class="modal-copy">Type a high-level goal or project feature. Berto will automatically break it down into actionable Kanban tasks with priorities, tags, and subtasks.</p>
-    <div class="modal-label">
-      <span>Project Goal or Feature</span>
-      <textarea class="search-input" id="ai-breakdown-goal" rows="3" placeholder="e.g. Build a user authentication system with OAuth, password reset, and email verification..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="button ghost" onclick="closeModal()">Cancel</button>
-      <button class="button primary glow-btn" id="generate-tasks-btn" onclick="generateAiTasks()">Generate Tasks</button>
-    </div>
-  `);
-  setTimeout(() => $('#ai-breakdown-goal')?.focus(), 100);
-}
-
-async function generateAiTasks() {
-  const goal = $('#ai-breakdown-goal')?.value.trim();
-  if (!goal) return toast('Please enter a goal', 'error');
-
-  const btn = $('#generate-tasks-btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Generating Tasks...';
-  }
-
-  try {
-    const result = await api.request({
-      prompt: `Break down the following goal into 3 to 6 actionable project task cards for a Kanban board:
-
-Goal: "${goal}"
-
-Output ONLY a valid JSON array of objects with this structure:
-[
-  {
-    "title": "Task title",
-    "desc": "Short description",
-    "priority": "urgent" | "high" | "medium" | "low",
-    "tag": "Feature" | "Bug" | "Design" | "Research" | "Docs" | "AI",
-    "status": "todo",
-    "subtasks": ["Subtask 1", "Subtask 2"]
-  }
-]`,
-      system: 'You are an expert Agile Project Manager. Output ONLY valid JSON array with no extra markdown formatting or conversational text.',
-      preferred: store.state.model
-    });
-
-    const jsonMatch = result.text.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const generated = JSON.parse(jsonMatch[0]);
-      const currentTasks = getKanbanTasks();
-
-      generated.forEach(item => {
-        currentTasks.push({
-          id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          title: item.title || 'Generated Task',
-          desc: item.desc || '',
-          priority: item.priority || 'medium',
-          tag: item.tag || 'Feature',
-          status: item.status || 'todo',
-          dueDate: '',
-          subtasks: (item.subtasks || []).map(st => ({ text: typeof st === 'string' ? st : st.text, completed: false }))
-        });
-      });
-
-      saveKanbanTasks(currentTasks);
-      closeModal();
-      toast(`Successfully generated ${generated.length} tasks!`, 'success');
-    } else {
-      throw new Error('Invalid JSON format from AI');
-    }
-  } catch (err) {
-    toast(`Task generation failed: ${err.message}`, 'error');
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Generate Tasks';
-    }
-  }
-}
-
 let recognitionInstance = null;
 
 function toggleWritingDictation() {
@@ -4009,7 +3182,7 @@ OUTPUT RULES
       topP: store.state.topP
     });
 
-    output.innerHTML = renderMarkdown(result.text);
+    output.innerHTML = typeof renderMarkdownEnhanced === 'function' ? renderMarkdownEnhanced(result.text) : renderMarkdown(result.text);
   } catch (error) {
     output.innerHTML = `
       <div class="error-state">
@@ -4054,49 +3227,6 @@ function renderFiles() {
       <p>Upload files to give your conversations extra context.</p>
     </div>
   `;
-}
-
-function renderProjects() {
-  const grid = $('#project-grid');
-  if (!grid) return;
-  const projects = store.state.projects.length ? store.state.projects : [
-    { name: 'Personal workspace', desc: 'A home for everyday ideas and notes.' },
-    { name: 'Product launch', desc: 'Keep strategy, research, and drafts together.' }
-  ];
-  grid.innerHTML = projects.map((project, index) => `
-    <article class="project-card">
-      <div class="project-top">
-        <span>${index ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'}</span>
-        <div class="project-actions">
-          <button class="icon-button" data-action="edit-project-modal" data-project-index="${index}" title="Edit Project">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-          </button>
-          <button class="icon-button danger" data-action="delete-project" data-project-index="${index}" title="Delete Project">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-      <h3>${escapeHtml(project.name)}</h3>
-      <p>${escapeHtml(project.desc)}</p>
-    </article>
-  `).join('');
-}
-
-function openNewProjectModal(editIndex = null) {
-  const project = editIndex !== null ? store.state.projects[editIndex] : { name: '', desc: '' };
-  openModal(editIndex !== null ? 'Edit Project' : 'New Project', `
-    <label class="modal-label">Project Name
-      <input class="search-input" id="project-name-input" value="${escapeHtml(project?.name || '')}" placeholder="e.g. Website Redesign">
-    </label>
-    <label class="modal-label">Description
-      <input class="search-input" id="project-desc-input" value="${escapeHtml(project?.desc || '')}" placeholder="Brief context...">
-    </label>
-    <div class="modal-actions">
-      <button class="button ghost" data-action="close-modal">Cancel</button>
-      <button class="button primary" id="save-project-btn" data-edit-index="${editIndex !== null ? editIndex : ''}">${editIndex !== null ? 'Save Changes' : 'Create Project'}</button>
-    </div>
-  `);
-  setTimeout(() => $('#project-name-input')?.focus(), 100);
 }
 
 function renderSettings() {
@@ -4284,18 +3414,6 @@ function handleAction(action, element) {
     renderWritingProfile();
     closeModal();
     toast('Writing profile saved');
-  } else if (action === 'new-project') {
-    openNewProjectModal();
-  } else if (action === 'edit-project-modal') {
-    const index = Number(element?.dataset?.projectIndex);
-    if (!isNaN(index)) openNewProjectModal(index);
-  } else if (action === 'delete-project') {
-    const index = Number(element?.dataset?.projectIndex);
-    if (!isNaN(index)) {
-      store.removeProject(index);
-      renderProjects();
-      toast('Project deleted');
-    }
   } else if (action === 'delete-file') {
     const fileName = element?.dataset?.fileName;
     if (fileName) {
@@ -4364,16 +3482,10 @@ function handleAction(action, element) {
     if (frame) frame.srcdoc = '';
   } else if (action === 'summarize-to-live') {
     summarizeAndSendToLive();
-  } else if (action === 'showcase' || action === 'showcase-features') {
-    runFeatureShowcase();
   } else if (action === 'close-artifact') {
     closeArtifact();
   } else if (action === 'dictate-notes') {
     toggleWritingDictation();
-  } else if (action === 'new-kanban-task') {
-    openEditTaskModal();
-  } else if (action === 'ai-task-breakdown') {
-    openAiTaskBreakdownModal();
   } else if (action === 'fork-chat') {
     const messageId = element.dataset.messageId;
     const currentChat = store.activeChat;
@@ -4424,48 +3536,75 @@ function handleAction(action, element) {
     downloadText(`${chat.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`, JSON.stringify(chat, null, 2), 'application/json');
     toast('Chat exported as JSON');
   }
-  else if (action === 'extract-kanban-tasks') {
-    const msgNode = element.closest('[data-message]');
-    const msgId = msgNode?.dataset?.message;
-    const msg = store.messages.find(m => m.id === msgId);
-    if (!msg) return;
-
-    toast('Extracting action items into Kanban board...', 'info');
-
-    // Use IIFE to handle async operation
-    (async () => {
-      try {
-        const result = await api.request({
-          prompt: `Extract actionable tasks from this text into a clean JSON array:\n\n${msg.content}`,
-          system: `Output ONLY a valid JSON array of objects with "title" and "desc" fields.`,
-          preferred: store.state.model
-        });
-
-        const jsonMatch = result.text.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const extractedTasks = JSON.parse(jsonMatch[0]);
-          const currentTasks = getKanbanTasks();
-
-          extractedTasks.forEach(task => {
-            currentTasks.push({
-              id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-              title: task.title || 'Extracted Task',
-              desc: task.desc || '',
-              status: 'todo'
-            });
-          });
-
-          saveKanbanTasks(currentTasks);
-          toast(`Added ${extractedTasks.length} task(s) to Project Board`, 'success');
-        }
-      } catch (err) {
-        toast('Could not extract tasks from this response', 'error');
-      }
-    })();
-  }
   else if (action === 'read-aloud') {
     const msgId = element?.dataset?.messageId;
     if (msgId) toggleReadAloud(msgId, element);
+  } else if (action === 'manage-gems') {
+    openGemsManagerModal();
+  } else if (action === 'save-gem') {
+    try {
+      // 1. Safely locate input elements
+      const idEl = document.getElementById('gem-form-id');
+      const nameEl = document.getElementById('gem-form-name');
+      const descEl = document.getElementById('gem-form-desc');
+      const promptEl = document.getElementById('gem-form-prompt');
+
+      // 2. Extract values, falling back to empty strings if elements are missing
+      const id = (idEl && idEl.value) ? idEl.value : `gem_${Date.now()}`;
+      const name = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
+      const description = (descEl && descEl.value) ? descEl.value.trim() : '';
+      const systemPrompt = (promptEl && promptEl.value) ? promptEl.value.trim() : '';
+
+      // 3. Safely target the SVG icon picker
+      const activeIconBtn = document.querySelector('#gem-svg-picker .gem-svg-option.active');
+      const iconKey = activeIconBtn ? activeIconBtn.getAttribute('data-icon-key') : 'bot';
+
+      // 4. Validate required fields
+      if (!name || !systemPrompt) {
+        toast('Please enter a Gem Name and System Prompt', 'error');
+        return;
+      }
+
+      // 5. Save logic
+      const currentGems = getCustomGems();
+      const existingIndex = currentGems.findIndex(g => g.id === id);
+      const newGem = { id, name, iconKey, description, systemPrompt };
+
+      if (existingIndex > -1) {
+        currentGems[existingIndex] = newGem;
+      } else {
+        currentGems.push(newGem);
+      }
+
+      saveCustomGems(currentGems);
+      closeModal();
+      toast(`Gem "${name}" saved successfully!`, 'success');
+
+    } catch (err) {
+      console.error("[Berto] Error saving gem:", err);
+      toast("Error saving gem: " + err.message, "error");
+    }
+  } else if (action === 'edit-gem') {
+    const gemId = element.dataset.gemId;
+    const gem = getCustomGems().find(g => g.id === gemId);
+    if (gem) {
+      document.getElementById('gem-form-id').value = gem.id;
+      document.getElementById('gem-form-name').value = gem.name;
+      document.getElementById('gem-form-desc').value = gem.description || '';
+      document.getElementById('gem-form-prompt').value = gem.systemPrompt || '';
+      document.getElementById('gem-form-title').textContent = `Edit Gem: "${gem.name}"`;
+      
+      const pickerGrid = document.getElementById('gem-svg-picker');
+      pickerGrid?.querySelectorAll('.gem-svg-option').forEach(b => {
+        b.classList.toggle('active', b.dataset.iconKey === (gem.iconKey || 'bot'));
+      });
+    }
+  } else if (action === 'delete-gem') {
+    const gemId = element.dataset.gemId;
+    const updatedGems = getCustomGems().filter(g => g.id !== gemId);
+    saveCustomGems(updatedGems);
+    openGemsManagerModal();
+    toast('Gem deleted');
   }
 }
 
@@ -4674,8 +3813,8 @@ function initVoiceView() {
         savePreferences({ theme: 'dark' });
         toast('Theme changed to Dark');
       } 
-      else if (/\b(go to|open|show) (writing|files|projects|settings|chat)\b/i.test(cmd)) {
-        const match = cmd.match(/(writing|files|projects|settings|chat)/i);
+      else if (/\b(go to|open|show) (writing|files|settings|chat)\b/i.test(cmd)) {
+        const match = cmd.match(/(writing|files|settings|chat)/i);
         if (match) {
           route(match[0].toLowerCase());
           toast(`Navigated to ${match[0]}`);
@@ -4776,10 +3915,28 @@ function toggleVoice() {
     window.speechSynthesis.cancel();
   }
 
+  // CRITICAL FIX: Wake up or create AudioContext synchronously on user click
+  // This bypasses strict browser autoplay policies (especially on Safari/iOS)
+  if (!window.globalAudioContext) {
+    window.globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (window.globalAudioContext.state === 'suspended') {
+    window.globalAudioContext.resume();
+  }
+
   if (!voiceEngineInstance) {
     initVoiceView();
+    // Pass the pre-warmed context to the engine
+    if (voiceEngineInstance) {
+      voiceEngineInstance.audioContext = window.globalAudioContext;
+    }
     setTimeout(() => toggleVoice(), 100);
     return;
+  }
+  
+  // Ensure the engine has the warmed context
+  if (voiceEngineInstance && !voiceEngineInstance.audioContext) {
+    voiceEngineInstance.audioContext = window.globalAudioContext;
   }
   
   if (voiceEngineInstance.isListening) {
@@ -4891,7 +4048,7 @@ function showLiveSummaryPopup(title, content) {
 
   if (popup && bodyEl) {
     if (titleEl) titleEl.textContent = title || 'Live Summary';
-    bodyEl.innerHTML = typeof renderMarkdown === 'function' ? renderMarkdown(content) : content;
+    bodyEl.innerHTML = typeof renderMarkdownEnhanced === 'function' ? renderMarkdownEnhanced(content) : (typeof renderMarkdown === 'function' ? renderMarkdown(content) : content);
     popup.hidden = false;
     toast(`${LOGO_HTML} Opened Live Summary Pop-up`, 'info');
   }
@@ -5162,24 +4319,6 @@ document.addEventListener('click', event => {
       renderChats();
       closeModal();
       toast('Chat renamed');
-    }
-    return;
-  }
-
-  if (event.target.id === 'save-project-btn') {
-    const editIndex = event.target.dataset.editIndex;
-    const name = $('#project-name-input')?.value.trim();
-    const desc = $('#project-desc-input')?.value.trim();
-    if (name) {
-      if (editIndex !== '') {
-        store.updateProject(Number(editIndex), { name, desc: desc || 'Ongoing workspace project.' });
-        toast('Project updated');
-      } else {
-        store.addProject({ name, desc: desc || 'Ongoing workspace project.' });
-        toast('Project created');
-      }
-      renderProjects();
-      closeModal();
     }
     return;
   }
@@ -5472,172 +4611,187 @@ if ('serviceWorker' in navigator && window.location.protocol.startsWith('http'))
 // =========================================================
 // PUSH-TO-TALK HOTKEY
 // =========================================================
-let isPushToTalkActive = false;
-
-document.addEventListener('keydown', (e) => {
-  // Only trigger if in Voice mode, not typing in an input field, and pressing Space
-  if (store.state.route !== 'voice' || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
-    return;
-  }
-
-  if (e.code === 'Space' && !e.repeat && !isPushToTalkActive) {
-    e.preventDefault();
-    isPushToTalkActive = true;
-    if (voiceEngineInstance && !voiceEngineInstance.isListening) {
-      voiceEngineInstance.startListening();
-      toast('Push-to-Talk Active', 'info');
-    }
-  }
-});
-
-document.addEventListener('keyup', (e) => {
-  if (e.code === 'Space' && isPushToTalkActive) {
-    e.preventDefault();
-    isPushToTalkActive = false;
-    if (voiceEngineInstance && voiceEngineInstance.isListening) {
-      voiceEngineInstance.stopListening();
-      toast('Push-to-Talk Released', 'info');
-    }
-  }
-});
-
+// UNIVERSAL MATH & MARKDOWN PARSER
 // =========================================================
-// FOCUS TRAP & ARIA IMPROVEMENTS
-// =========================================================
-function trapModalFocus(modalEl) {
-  if (!modalEl) return;
-  
-  const focusables = modalEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-  if (!focusables.length) return;
+function renderMarkdownEnhanced(input = '') {
+  if (!input) return '';
 
-  const first = focusables[0];
-  const last = focusables[focusables.length - 1];
+  let text = input;
 
-  modalEl.onkeydown = (e) => {
-    if (e.key !== 'Tab') return;
-
-    if (e.shiftKey) {
-      if (document.activeElement === first) {
-        last.focus();
-        e.preventDefault();
-      }
-    } else {
-      if (document.activeElement === last) {
-        first.focus();
-        e.preventDefault();
-      }
-    }
-  };
-}
-
-
-// =========================================================
-// ARTIFACT RESIZER LOGIC
-// =========================================================
-function initArtifactResizer() {
-  const resizer = $('#artifact-resizer');
-  const layout = $('#chat-layout');
-  const drawer = $('#artifact-drawer');
-  
-  if (!resizer || !layout || !drawer) return;
-
-  let isResizing = false;
-
-  resizer.addEventListener('mousedown', (e) => {
-    isResizing = true;
-    resizer.classList.add('is-dragging');
-    document.body.classList.add('is-resizing');
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+  // 1. PROTECT CODE BLOCKS: Don't parse math inside code blocks or inline code
+  const codeBlocks = [];
+  text = text.replace(/```[\s\S]*?```|`[^`]+`/g, (match) => {
+    const placeholder = `%%CODEBLOCK_${codeBlocks.length}%%`;
+    codeBlocks.push(match);
+    return placeholder;
   });
 
-  document.addEventListener('mousemove', (e) => {
-    if (!isResizing) return;
-    
-    const containerRect = layout.getBoundingClientRect();
-    const newDrawerWidth = containerRect.right - e.clientX;
-    
-    // Clamp width between 280px and 70% of screen
-    const clampedWidth = Math.max(280, Math.min(newDrawerWidth, containerRect.width * 0.7));
-    drawer.style.width = `${clampedWidth}px`;
+  // 2. EXTRACT DISPLAY MATH ($$ ... $$)
+  const mathBlocks = [];
+  text = text.replace(/\$\$(.*?)\$\$/gs, (match, math) => {
+    const placeholder = `%%MATHBLOCK_${mathBlocks.length}%%`;
+    mathBlocks.push(math.trim());
+    return placeholder;
   });
 
-  const stopDrag = () => {
-    if (isResizing) {
-      isResizing = false;
-      resizer.classList.remove('is-dragging');
-      document.body.classList.remove('is-resizing');
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-  };
+  // 3. EXTRACT INLINE MATH ($ ... $)
+  const mathInlines = [];
+  text = text.replace(/(?<!\$)\$([^\$\n]+?)\$(?!\$)/g, (match, math) => {
+    const placeholder = `%%MATHINLINE_${mathInlines.length}%%`;
+    mathInlines.push(math.trim());
+    return placeholder;
+  });
 
-  document.addEventListener('mouseup', stopDrag);
-  document.addEventListener('mousecancel', stopDrag);
+  // 4. RESTORE CODE BLOCKS
+  text = text.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[parseInt(idx)]);
+
+  // 5. RENDER STANDARD MARKDOWN
+  let html = renderMarkdown(text);
+
+  // 6. RENDER MATH (KaTeX if available, otherwise Plain Text fallback)
+  if (window.katex) {
+    // Render Display Math with KaTeX
+    html = html.replace(/%%MATHBLOCK_(\d+)%%/g, (_, idx) => {
+      const rawMath = mathBlocks[parseInt(idx)];
+      try {
+        return `<div class="math-block">${window.katex.renderToString(rawMath, { displayMode: true, throwOnError: false })}</div>`;
+      } catch (e) {
+        return `<div class="math-block-plain">${cleanLatexToPlain(rawMath)}</div>`;
+      }
+    });
+
+    // Render Inline Math with KaTeX
+    html = html.replace(/%%MATHINLINE_(\d+)%%/g, (_, idx) => {
+      const rawMath = mathInlines[parseInt(idx)];
+      try {
+        return window.katex.renderToString(rawMath, { displayMode: false, throwOnError: false });
+      } catch (e) {
+        return cleanLatexToPlain(rawMath);
+      }
+    });
+  } else {
+    // FALLBACK: Clean Plain Text (Strips $$, $, \frac, \text)
+    html = html.replace(/%%MATHBLOCK_(\d+)%%/g, (_, idx) => {
+      return `<div class="math-block-plain"><strong>${cleanLatexToPlain(mathBlocks[parseInt(idx)])}</strong></div>`;
+    });
+
+    html = html.replace(/%%MATHINLINE_(\d+)%%/g, (_, idx) => {
+      return cleanLatexToPlain(mathInlines[parseInt(idx)]);
+    });
+  }
+
+  // 7. PROCESS MERMAID DIAGRAMS
+  html = html.replace(/<pre class="code-block"><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
+    const rawMermaid = decodeURIComponent(code).replace(/</g, '<').replace(/>/g, '>').replace(/&/g, '&');
+    const id = `mermaid_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    
+    setTimeout(() => {
+      if (window.mermaid) {
+        window.mermaid.initialize({ 
+          startOnLoad: false, 
+          theme: document.documentElement.dataset.theme === 'light' ? 'default' : 'dark',
+          securityLevel: 'loose'
+        });
+        const el = document.getElementById(id);
+        if (el) {
+          window.mermaid.render(`${id}_svg`, rawMermaid).then(({ svg }) => {
+            el.innerHTML = svg;
+          }).catch(err => {
+            el.innerHTML = `<pre class="mermaid-error">Diagram render error</pre>`;
+          });
+        }
+      }
+    }, 100);
+
+    return `<div class="mermaid-container" id="${id}"><div class="typing">Rendering Diagram...</div></div>`;
+  });
+
+  // 8. PROCESS CHART.JS BLOCKS
+  html = html.replace(/<pre class="code-block"><code class="language-chart">([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
+    const rawChart = decodeURIComponent(code).replace(/</g, '<').replace(/>/g, '>').replace(/&/g, '&');
+    const id = `chart_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+    setTimeout(() => {
+      const canvas = document.getElementById(id);
+      if (!canvas) return;
+
+      if (!window.Chart) {
+        canvas.outerHTML = `<pre class="chart-error">⚠️ Chart.js library failed to load. Check your internet connection or reload the page.</pre>`;
+        return;
+      }
+
+      try {
+        const config = JSON.parse(sanitizeChartJson(rawChart));
+        if (Chart.getChart(canvas)) return;
+
+        const isDark = document.documentElement.dataset.theme !== 'light';
+        const textColor = isDark ? '#cbd5e1' : '#334155';
+        const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+        const palette = ['#82f3d0', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#34d399', '#f87171', '#22d3ee'];
+
+        const datasets = (config.datasets || []).map((ds, i) => ({
+          label: ds.label || `Dataset ${i + 1}`,
+          data: ds.data || [],
+          borderColor: ds.color || palette[i % palette.length],
+          backgroundColor: ds.backgroundColor || (ds.color || palette[i % palette.length]) + '33',
+          fill: ds.fill !== undefined ? ds.fill : (config.type === 'line'),
+          tension: config.type === 'line' ? 0.3 : undefined,
+          borderWidth: 2,
+          pointRadius: config.type === 'line' ? 3 : undefined
+        }));
+
+        const chartConfig = {
+          type: config.type || 'bar',
+          data: {
+            labels: config.labels || [],
+            datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: !!config.title,
+                text: config.title || '',
+                color: textColor,
+                font: { size: 15, weight: '600' }
+              },
+              legend: {
+                labels: { color: textColor }
+              }
+            },
+            scales: (config.type === 'pie' || config.type === 'doughnut') ? {} : {
+              x: { ticks: { color: textColor }, grid: { color: gridColor } },
+              y: { ticks: { color: textColor }, grid: { color: gridColor } }
+            }
+          }
+        };
+
+        new Chart(canvas, chartConfig);
+      } catch (err) {
+        const currentCanvas = document.getElementById(id);
+        if (currentCanvas) {
+          currentCanvas.outerHTML = `<pre class="chart-error">⚠️ Chart render error: ${escapeHtml(err.message)}</pre>`;
+        }
+      }
+    }, 50);
+
+    return `<div class="chart-container"><canvas id="${id}"></canvas></div>`;
+  });
+
+  return html;
 }
 
-// Update openArtifact() and closeArtifact() to toggle resizer
-
-// =========================================================
-// INITIALIZATION
-// =========================================================
-
-// First-Time Setup Flow
-function initSetup() {
-  const hasKey = localStorage.getItem(CONFIG.storage.apiKey);
-  const hasCompletedSetup = localStorage.getItem(`${INSTANCE_PREFIX}-setup-complete`);
-  
-  if (!hasKey && !hasCompletedSetup) {
-    const overlay = $('#setup-overlay');
-    if (overlay) {
-      overlay.hidden = false;
-      
-      const nameInput = $('#setup-name');
-      const keyInput = $('#setup-api-key');
-      const submitBtn = $('#setup-submit');
-      const skipBtn = $('#setup-skip');
-      
-      function validateSetup() {
-        const hasName = nameInput?.value.trim().length > 0;
-        const hasApiKey = keyInput?.value.trim().length > 0;
-        if (submitBtn) submitBtn.disabled = !(hasName || hasApiKey);
-      }
-      
-      nameInput?.addEventListener('input', validateSetup);
-      keyInput?.addEventListener('input', validateSetup);
-      
-      function completeSetup() {
-        const name = nameInput?.value.trim();
-        const apiKey = keyInput?.value.trim();
-        
-        if (name) {
-          savePreferences({ userName: name });
-        }
-        if (apiKey) {
-          writeStorage(CONFIG.storage.apiKey, apiKey);
-        }
-        
-        writeStorage(`${INSTANCE_PREFIX}-setup-complete`, 'true');
-        overlay.hidden = true;
-        renderSettings();
-        
-        if (name) toast(`Welcome, ${name}! Berto is ready.`);
-        else toast('Welcome! Set your name in Settings anytime.');
-      }
-      
-      submitBtn?.addEventListener('click', completeSetup);
-      
-      keyInput?.addEventListener('keydown', event => {
-        if (event.key === 'Enter') completeSetup();
-      });
-      
-      skipBtn?.addEventListener('click', () => {
-        writeStorage(`${INSTANCE_PREFIX}-setup-complete`, 'true');
-        overlay.hidden = true;
-        toast('You can add your API key in Settings anytime.');
-      });
-    }
-  }
+// Plain Text Sanitizer Helper
+function cleanLatexToPlain(raw = '') {
+  return raw
+    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '$1 / $2')
+    .replace(/\\text\{([^{}]+)\}/g, '$1')
+    .replace(/\\mathbf\{([^{}]+)\}/g, '**$1**')
+    .replace(/\\approx/g, '≈')
+    .replace(/\\times/g, '×')
+    .replace(/\\cdot/g, '·')
+    .replace(/\\/g, '');
 }
 
 // Initial Render
@@ -5663,14 +4817,12 @@ store.subscribe(() => { renderChats(); });
 const SLASH_COMMANDS = [
   { cmd: '/write', desc: 'Open Writing Studio', action: () => route('writing') },
   { cmd: '/voice', desc: 'Launch Berto Live Voice', action: () => { route('voice'); initVoiceView(); } },
-  { cmd: '/projects', desc: 'View Kanban Board', action: () => route('projects') },
   { cmd: '/theme', desc: 'Toggle Light/Dark Theme', action: () => {
       const current = document.documentElement.dataset.theme || 'dark';
       savePreferences({ theme: current === 'dark' ? 'light' : 'dark' });
     }
   },
   { cmd: '/clear', desc: 'Start a fresh conversation', action: () => handleAction('new-chat') },
-  { cmd: '/demo', desc: 'Run Keynote Feature Showcase', action: () => runFeatureShowcase() }
 ];
 
 function setupSlashCommandPalette() {
@@ -5749,6 +4901,293 @@ function setupSlashCommandPalette() {
   });
 }
 
+// =========================================================
+// BERTO GEMS (SVG VECTOR ICON ENGINE & MANAGER)
+// =========================================================
+
+const GEM_SVG_ICONS = {
+  zap: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+  code: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+  edit: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`,
+  cap: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`,
+  palette: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.92 0 1.5-.72 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-4.96-4.49-9-10-9z"/></svg>`,
+  bot: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>`,
+  brain: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/></svg>`,
+  terminal: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 12 4 6"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`,
+  sparkles: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
+  wrench: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`
+};
+
+const BUILTIN_GEMS = [
+  {
+    id: 'default',
+    name: 'Berto (Autonomous)',
+    iconKey: 'zap',
+    description: 'Default workspace intelligence',
+    systemPrompt: ''
+  },
+  {
+    id: 'engineer',
+    name: 'Senior Software Engineer',
+    iconKey: 'code',
+    description: 'Scalable architecture & clean code',
+    systemPrompt: 'You are an expert Senior Software Architect. Provide robust, type-safe, modular, and performance-optimized code solutions with minimal conversational fluff.'
+  },
+  {
+    id: 'editor',
+    name: 'Strict Copy Editor',
+    iconKey: 'edit',
+    description: 'Ruthless editing for conciseness & tone',
+    systemPrompt: 'You are a Strict Copy Editor. Ruthlessly analyze and refine text for maximum clarity, impact, flow, and grammatical precision. Avoid corporate jargon and generic AI idioms.'
+  },
+  {
+    id: 'tutor',
+    name: 'Socratic Tutor',
+    iconKey: 'cap',
+    description: 'Guided discovery learning',
+    systemPrompt: 'You are a Socratic Tutor. Guide the user to discover solutions independently by asking thought-provoking, incremental questions rather than giving immediate answers.'
+  },
+  {
+    id: 'designer',
+    name: 'UI/UX Architect',
+    iconKey: 'palette',
+    description: 'Modern component & design systems',
+    systemPrompt: 'You are a Principal UI/UX Architect. Focus on modern glassmorphism design systems, micro-interactions, responsive accessibility, and clean visual hierarchy.'
+  }
+];
+
+function getCustomGems() {
+  // Try reading from safe storage layer first, fallback to empty array
+  const gems = readStorage('berto-custom-gems', null);
+  if (gems) return gems;
+
+  // Fallback check from IndexedDB if localStorage was full
+  dbStorage.get('settings', 'berto-custom-gems')
+    .then(asyncGems => {
+      if (asyncGems && Array.isArray(asyncGems)) {
+        writeStorage('berto-custom-gems', JSON.stringify(asyncGems));
+        renderGemSelector();
+      }
+    }).catch(() => {});
+
+  return [];
+}
+
+function saveCustomGems(gems) {
+  const json = JSON.stringify(gems);
+  
+  // 1. Save to writeStorage (handles localStorage & sessionStorage fallbacks)
+  const savedLocally = writeStorage('berto-custom-gems', json);
+
+  // 2. Always backup to IndexedDB (Gigabytes of storage)
+  dbStorage.set('settings', 'berto-custom-gems', gems)
+    .catch(err => console.warn('[Berto] IndexedDB Gems backup failed:', err));
+
+  if (!savedLocally) {
+    toast('Local quota full. Gem saved safely to IndexedDB storage!', 'info');
+  }
+
+  renderGemSelector();
+}
+
+function getAllGems() {
+  return [...BUILTIN_GEMS, ...getCustomGems()];
+}
+
+function getGemIconSvg(iconKey) {
+  return GEM_SVG_ICONS[iconKey] || GEM_SVG_ICONS.sparkles;
+}
+
+function renderGemSelector() {
+  const select = document.getElementById('persona-select');
+  const iconContainer = document.querySelector('.persona-icon');
+  if (!select) return;
+
+  const currentVal = select.value || 'default';
+  const allGems = getAllGems();
+
+  select.innerHTML = allGems.map(gem => `
+    <option value="${gem.id}" ${gem.id === currentVal ? 'selected' : ''}>
+      ${escapeHtml(gem.name)}
+    </option>
+  `).join('');
+
+  const activeGem = allGems.find(g => g.id === currentVal) || BUILTIN_GEMS[0];
+  if (iconContainer) {
+    iconContainer.innerHTML = getGemIconSvg(activeGem.iconKey);
+  }
+}
+
+function openGemsManagerModal() {
+  const customGems = getCustomGems();
+  let selectedIconKey = 'bot';
+
+  const gemsListHtml = customGems.length ? customGems.map(gem => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--surface-3); border:1px solid var(--border); border-radius:10px; margin-bottom:8px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="color:var(--accent); display:flex; align-items:center;">${getGemIconSvg(gem.iconKey)}</span>
+        <div>
+          <strong style="color:var(--text); font-size:13px;">${escapeHtml(gem.name)}</strong>
+          <p style="margin:2px 0 0; color:var(--muted); font-size:11px;">${escapeHtml(gem.description || 'Custom Gem')}</p>
+        </div>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="button ghost" data-action="edit-gem" data-gem-id="${gem.id}" style="padding:4px 8px; font-size:11px;">Edit</button>
+        <button class="button danger" data-action="delete-gem" data-gem-id="${gem.id}" style="padding:4px 8px; font-size:11px;">Delete</button>
+      </div>
+    </div>
+  `).join('') : '<p style="color:var(--faint); font-size:12px; margin-bottom:14px;">No custom Gems created yet.</p>';
+
+  const svgPickerHtml = Object.keys(GEM_SVG_ICONS).map(key => `
+    <button type="button" class="gem-svg-option ${key === selectedIconKey ? 'active' : ''}" data-icon-key="${key}" title="${key}">
+      ${GEM_SVG_ICONS[key]}
+    </button>
+  `).join('');
+
+  const modalBody = `
+    <div style="margin-bottom:20px;">
+      <h4 style="margin:0 0 8px; font-size:14px; color:var(--text);">Your Custom Gems</h4>
+      ${gemsListHtml}
+    </div>
+
+    <div style="border-top:1px solid var(--border); padding-top:16px;">
+      <h4 id="gem-form-title" style="margin:0 0 12px; font-size:14px; color:var(--accent);">+ Create New Gem</h4>
+      
+      <input type="hidden" id="gem-form-id" value="">
+      
+      <label class="modal-label">Gem Icon
+        <div class="gem-svg-picker-grid" id="gem-svg-picker">
+          ${svgPickerHtml}
+        </div>
+      </label>
+
+      <label class="modal-label">Gem Name
+        <input type="text" id="gem-form-name" placeholder="e.g. Spanish Tutor">
+      </label>
+
+      <label class="modal-label">Short Description
+        <input type="text" id="gem-form-desc" placeholder="Brief summary of what this Gem does">
+      </label>
+
+      <label class="modal-label">System Prompt / Instructions
+        <textarea id="gem-form-prompt" placeholder="Write detailed instructions for how Gemini should behave..." style="min-height:110px;"></textarea>
+      </label>
+
+      <div class="modal-actions" style="margin-top:12px;">
+        <button class="button ghost" data-action="close-modal">Cancel</button>
+        <button class="button primary" data-action="save-gem">Save Gem</button>
+      </div>
+    </div>
+  `;
+
+  openModal('Berto Gems Manager', modalBody);
+
+  const pickerGrid = document.getElementById('gem-svg-picker');
+  pickerGrid?.querySelectorAll('.gem-svg-option').forEach(btn => {
+    btn.onclick = () => {
+      pickerGrid.querySelectorAll('.gem-svg-option').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+  });
+}
+
+document.getElementById('persona-select')?.addEventListener('change', () => {
+  renderGemSelector();
+});
+
+// Run selector initialization on load
+renderGemSelector();
+
+// =========================================================
+// FIRST-TIME SETUP OVERLAY
+// =========================================================
+function initSetup() {
+  const overlay = $('#setup-overlay');
+  if (!overlay) return;
+
+  // If setup has already been completed, keep the overlay hidden
+  if (localStorage.getItem(`${INSTANCE_PREFIX}-setup-complete`)) {
+    overlay.hidden = true;
+    return;
+  }
+
+  overlay.hidden = false;
+
+  const nameInput = $('#setup-name');
+  const apiKeyInput = $('#setup-api-key');
+  const submitBtn = $('#setup-submit');
+
+  function updateSubmitState() {
+    const hasName = (nameInput?.value || '').trim().length > 0;
+    const hasKey = (apiKeyInput?.value || '').trim().length > 0;
+    if (submitBtn) submitBtn.disabled = !(hasName && hasKey);
+  }
+
+  nameInput?.addEventListener('input', updateSubmitState);
+  apiKeyInput?.addEventListener('input', updateSubmitState);
+
+  // Submit: save name + API key, then dismiss overlay
+  submitBtn?.addEventListener('click', () => {
+    const name = (nameInput?.value || '').trim();
+    const key = (apiKeyInput?.value || '').trim();
+
+    if (name) savePreferences({ userName: name });
+    if (key) {
+      try { localStorage.setItem(CONFIG.storage.apiKey, key); } catch (e) {}
+      toast('API key saved locally');
+    }
+
+    try { localStorage.setItem(`${INSTANCE_PREFIX}-setup-complete`, 'true'); } catch (e) {}
+    overlay.hidden = true;
+    toast(`Welcome, ${name || 'friend'}!`);
+  });
+
+  // Skip: just mark setup complete and dismiss
+  $('#setup-skip')?.addEventListener('click', () => {
+    try { localStorage.setItem(`${INSTANCE_PREFIX}-setup-complete`, 'true'); } catch (e) {}
+    overlay.hidden = true;
+  });
+}
+
+// =========================================================
+// SPLIT-SCREEN ARTIFACT DRAWER RESIZER
+// =========================================================
+function initArtifactResizer() {
+  const resizer = $('#artifact-resizer');
+  if (!resizer) return;
+
+  let isDragging = false;
+
+  resizer.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    isDragging = true;
+    resizer.classList.add('is-dragging');
+    document.body.classList.add('is-resizing');
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+
+    const drawer = $('#artifact-drawer');
+    const layout = $('#chat-layout');
+    if (!drawer || !layout) return;
+
+    const layoutRect = layout.getBoundingClientRect();
+    // Compute drawer width from the cursor X position relative to the layout's right edge
+    let width = layoutRect.right - e.clientX;
+    width = Math.max(300, Math.min(width, layoutRect.width * 0.7));
+    width = Math.min(width, layoutRect.width - 320); // keep chat-main usable
+    drawer.style.width = `${width}px`;
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    resizer.classList.remove('is-dragging');
+    document.body.classList.remove('is-resizing');
+  });
+}
+
 // Ensure Slash Commands and Artifact Resizer run regardless of load timing
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
@@ -5763,12 +5202,10 @@ if (document.readyState === 'loading') {
 renderChats();
 renderMessages();
 renderFiles();
-renderProjects();
 renderWritingProfile();
 renderSettings();
 writingMetrics();
 updateCount();
-renderKanbanBoard();
 initSetup();
 
 // Detect school account / network restrictions on app load
@@ -5777,3 +5214,6 @@ if (store.state.voiceFeaturesDisabled) {
 } else {
   detectManagedAccountRestrictions();
 }
+
+// Initialize Berto Gems Dropdown
+// (manage-gems-btn click is handled by the global delegated listener above)
