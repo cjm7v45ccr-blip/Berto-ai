@@ -397,43 +397,96 @@
         </div>
       </section>
 
-      <!-- View 4: Project Kanban Board -->
+      <!-- View 4: Supercharged Project Kanban Board -->
       <section class="view" id="view-projects" data-view="projects">
         <div class="page-shell">
           <div class="page-heading">
             <div>
-              <div class="eyebrow">Organize work</div>
+              <div class="eyebrow">
+                <span class="spark"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg></span>
+                Organize Work
+              </div>
               <h2>Project Board</h2>
-              <p>Drag & drop tasks between statuses or let Berto manage them via chat.</p>
+              <p>Manage tasks with priorities, subtasks, and drag-and-drop or let Berto AI generate and execute them.</p>
             </div>
-            <button class="button primary" data-action="new-kanban-task">
-              <span>New Task</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            </button>
+            <div class="kanban-heading-actions">
+              <button class="button ghost" data-action="ai-task-breakdown" title="Let Berto generate a task breakdown from a project goal">
+                <span class="spark"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg></span>
+                <span>AI Task Generator</span>
+              </button>
+              <button class="button primary glow-btn" data-action="new-kanban-task">
+                <span>New Task</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            </div>
           </div>
 
+          <!-- Kanban Filter & Search Toolbar -->
+          <div class="kanban-toolbar">
+            <div class="kanban-search-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="kanban-search" placeholder="Filter tasks by keyword..." oninput="renderKanbanBoard()">
+            </div>
+            <div class="kanban-filter-group">
+              <select id="kanban-filter-priority" onchange="renderKanbanBoard()" aria-label="Filter by priority">
+                <option value="all">All Priorities</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <select id="kanban-filter-tag" onchange="renderKanbanBoard()" aria-label="Filter by tag">
+                <option value="all">All Tags</option>
+                <option value="Feature">Feature</option>
+                <option value="Bug">Bug</option>
+                <option value="Design">Design</option>
+                <option value="Research">Research</option>
+                <option value="Docs">Docs</option>
+                <option value="AI">AI</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Kanban Board Columns -->
           <div class="kanban-board" id="kanban-board">
-            <div class="kanban-column" data-status="todo" ondragover="event.preventDefault()" ondrop="handleKanbanDrop(event, 'todo')">
+            <div class="kanban-column col-todo" data-status="todo" ondragover="handleKanbanDragOver(event)" ondragenter="handleKanbanDragEnter(event)" ondragleave="handleKanbanDragLeave(event)" ondrop="handleKanbanDrop(event, 'todo')">
               <div class="column-header">
-                <span class="col-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg></span>
-                To Do 
-                <span class="count-badge" id="count-todo">0</span>
+                <span class="col-title">
+                  <span class="col-dot status-todo"></span>
+                  To Do
+                  <span class="count-badge" id="count-todo">0</span>
+                </span>
+                <button class="col-quick-add" onclick="openEditTaskModal(null, 'todo')" title="Add task to To Do">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
               </div>
               <div class="column-tasks" id="tasks-todo"></div>
             </div>
-            <div class="kanban-column" data-status="in-progress" ondragover="event.preventDefault()" ondrop="handleKanbanDrop(event, 'in-progress')">
+
+            <div class="kanban-column col-in-progress" data-status="in-progress" ondragover="handleKanbanDragOver(event)" ondragenter="handleKanbanDragEnter(event)" ondragleave="handleKanbanDragLeave(event)" ondrop="handleKanbanDrop(event, 'in-progress')">
               <div class="column-header">
-                <span class="col-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 6 12 12 16 14"/><circle cx="12" cy="12" r="10"/></svg></span>
-                In Progress 
-                <span class="count-badge" id="count-in-progress">0</span>
+                <span class="col-title">
+                  <span class="col-dot status-in-progress"></span>
+                  In Progress
+                  <span class="count-badge" id="count-in-progress">0</span>
+                </span>
+                <button class="col-quick-add" onclick="openEditTaskModal(null, 'in-progress')" title="Add task to In Progress">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
               </div>
               <div class="column-tasks" id="tasks-in-progress"></div>
             </div>
-            <div class="kanban-column" data-status="done" ondragover="event.preventDefault()" ondrop="handleKanbanDrop(event, 'done')">
+
+            <div class="kanban-column col-done" data-status="done" ondragover="handleKanbanDragOver(event)" ondragenter="handleKanbanDragEnter(event)" ondragleave="handleKanbanDragLeave(event)" ondrop="handleKanbanDrop(event, 'done')">
               <div class="column-header">
-                <span class="col-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
-                Completed 
-                <span class="count-badge" id="count-done">0</span>
+                <span class="col-title">
+                  <span class="col-dot status-done"></span>
+                  Completed
+                  <span class="count-badge" id="count-done">0</span>
+                </span>
+                <button class="col-quick-add" onclick="openEditTaskModal(null, 'done')" title="Add task to Completed">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
               </div>
               <div class="column-tasks" id="tasks-done"></div>
             </div>
@@ -511,6 +564,30 @@
                 <div class="video-feed-label">Screen Share</div>
                 <video id="screen-video-element" autoplay playsinline muted></video>
               </div>
+            </div>
+
+            <!-- FLOATING LIVE SUMMARY POP-UP PANEL (Saves Chat RPD) -->
+            <div id="live-summary-popup" class="live-summary-popup" hidden>
+              <div class="summary-popup-header">
+                <span class="popup-title">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span id="summary-popup-title">Live Summary</span>
+                </span>
+                <button class="icon-button" onclick="closeLiveSummaryPopup()" title="Close Popup">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div class="summary-popup-body" id="summary-popup-body">
+                <!-- Summary content renders here -->
+              </div>
+            </div>
+
+            <!-- LIVE VIEW TEXT INPUT BAR (Text Q -> Speech A) -->
+            <div class="live-text-bar-wrap">
+              <input type="text" id="live-text-input" class="live-text-input" placeholder="Type a prompt to Berto Live (Text Q → Speech A)..." />
+              <button id="live-text-send-btn" class="live-text-send-btn" title="Send to Berto Live">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+              </button>
             </div>
           </div>
 

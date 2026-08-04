@@ -2,6 +2,64 @@
 const LIVE_MODEL = "models/gemini-3.1-flash-live-preview";
 const LIVE_MODEL_LABEL = "Gemini 3.1 Flash Live";
 
+// Universal file:// safe Web Search Helper
+async function executeWebSearch(query) {
+  console.log('[Berto Agent] Executing Web Search for:', query);
+  if (typeof toast === 'function') toast(`Searching web for "${query}"...`, 'info');
+
+  try {
+    // 1. Query DuckDuckGo Instant Answer API (Native CORS support for file://)
+    const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&no_redirect=1`;
+    const response = await fetch(ddgUrl);
+    const data = await response.json();
+
+    let resultsText = '';
+
+    if (data.AbstractText) {
+      resultsText += `DuckDuckGo Result [${data.Heading}]:\n${data.AbstractText}\nSource: ${data.AbstractURL || 'DuckDuckGo'}\n\n`;
+    }
+
+    if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+      const topics = data.RelatedTopics
+        .filter(t => t.Text)
+        .slice(0, 3)
+        .map((t, idx) => `Result ${idx + 1}: ${t.Text}\nLink: ${t.FirstURL || ''}`)
+        .join('\n\n');
+      if (topics) resultsText += `DuckDuckGo Web Topics:\n${topics}\n\n`;
+    }
+
+    // 2. Augment with Wikipedia MediaWiki API (Also natively file:// safe)
+    if (!resultsText || resultsText.length < 100) {
+      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
+      const wikiRes = await fetch(wikiUrl);
+      const wikiData = await wikiRes.json();
+      const wikiResults = wikiData?.query?.search || [];
+
+      if (wikiResults.length > 0) {
+        const pageTitle = wikiResults[0].title;
+        const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(pageTitle)}&format=json&origin=*`;
+        const extractRes = await fetch(extractUrl);
+        const extractData = await extractRes.json();
+        
+        const pages = extractData?.query?.pages || {};
+        const pageId = Object.keys(pages)[0];
+        const extractText = pages[pageId]?.extract || wikiResults[0].snippet.replace(/<[^>]+>/g, '');
+
+        resultsText += `Wikipedia Article [${pageTitle}]:\n${extractText}\nURL: https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/\s+/g, '_'))}`;
+      }
+    }
+
+    return {
+      success: true,
+      query: query,
+      searchResults: resultsText || `No direct search matches found for "${query}".`
+    };
+  } catch (err) {
+    console.error('[Berto Agent] Search error:', err);
+    return { success: false, error: `Search failed: ${err.message}` };
+  }
+}
+
 class VoiceEngine {
   constructor() {
     this.ws = null;
@@ -16,6 +74,7 @@ class VoiceEngine {
     this.screenTrack = null;
     this.videoFrameInterval = null;
     this.isListening = false;
+    this.isMicActive = false; // Explicitly track microphone state
     this.isSpeaking = false;
     this.isProcessing = false;
     this.isSetupComplete = false;
@@ -72,6 +131,27 @@ When you execute \`toggle_camera\` or \`toggle_screen_share\` to activate a vide
 - Video frames are captured and transmitted INSTANTLY into your vision input stream.
 - NEVER say "I can't see anything", "I cannot see it", "The camera is open but I have no feed", or "I'm waiting for video".
 - IMMEDIATELY inspect the video frames arriving in your vision feed and directly describe what you see (e.g., objects, person, surroundings, text, document, screen details) with confidence!
+
+━━━━━━━━━━━━━━━━━━
+VOICE-TO-CHAT BAR AUTOMATION & SWITCHING (IMPORTANT)
+━━━━━━━━━━━━━━━━━━
+If the user asks you to ask something in chat, fill the chat bar, type into chat, or ask Berto a question in text mode (e.g., "Ask Berto what is the leanest protein source", "Type in chat [question]", "Send this to chat"):
+1. YOU MUST CALL \`execute_ui_action\` with actions:
+   [
+     { "action": "navigate", "view": "chat" },
+     { "action": "type", "selector": "#prompt", "value": "<the user's query/question>" },
+     { "action": "send_chat", "value": "<the user's query/question>" }
+   ]
+2. Respond verbally: "Switching to chat and submitting that for you now!"
+
+━━━━━━━━━━━━━━━━━━
+LIVE SUMMARY POP-UP INSTRUCTIONS
+━━━━━━━━━━━━━━━━━━
+When the user asks you to "summarize this conversation", "show summary", or "give me notes":
+- DO NOT switch to the chat view.
+- Instead, call \`execute_ui_action\` with action:
+  [{ "action": "show_live_popup", "title": "Live Conversation Summary", "value": "<your summary text>" }]
+- Respond verbally: "I've popped up the summary box right here on screen for you!"
 
 ━━━━━━━━━━━━━━━━━━
 VOICE PERSONA / VOICE SWITCHING CONTROL
@@ -145,6 +225,7 @@ If the user says "bye" or "goodbye", respond with a very brief, polite farewell.
 
   async startListening(options = {}) {
     const enableMicrophone = options.enableMicrophone !== false;
+    this.isMicActive = enableMicrophone; // Set true ONLY if mic requested
 
     if (this.isListening && enableMicrophone && this.microphoneStream) return;
 
@@ -242,6 +323,20 @@ If the user says "bye" or "goodbye", respond with a very brief, polite farewell.
               {
                 functionDeclarations: [
                   {
+                    name: "web_search",
+                    description: "Search the web for up-to-date news, facts, people, music, or real-time information.",
+                    parameters: {
+                      type: "OBJECT",
+                      properties: {
+                        query: {
+                          type: "STRING",
+                          description: "The topic or query to search on the web (e.g. 'Oliver Tree', 'latest AI news')."
+                        }
+                      },
+                      required: ["query"]
+                    }
+                  },
+                  {
                     name: "change_voice",
                     description: "Dynamically change Berto's voice persona/tone when commanded verbally by the user.",
                     parameters: {
@@ -297,7 +392,7 @@ If the user says "bye" or "goodbye", respond with a very brief, polite farewell.
                             properties: {
                               action: { 
                                 type: "STRING", 
-                                description: "Action type: 'snap_photo', 'use_writing_studio', 'navigate', 'set_name', 'set_theme', 'type', 'click', 'select', 'new_chat', 'send_chat', 'showcase_features'" 
+                                description: "Action type: 'snap_photo', 'use_writing_studio', 'navigate', 'set_name', 'set_theme', 'type', 'click', 'select', 'new_chat', 'send_chat', 'showcase_features', 'click_text', 'scroll', 'create_artifact'" 
                               },
                               countdown: { type: "NUMBER", description: "Countdown seconds before snapping photo (default 2)" },
                               format: { type: "STRING", description: "Format for writing studio: 'Essay', 'Email', 'Blog', 'Report', 'Resume', 'Cover Letter'" },
@@ -305,7 +400,12 @@ If the user says "bye" or "goodbye", respond with a very brief, polite farewell.
                               value: { type: "STRING", description: "Text value or message" },
                               target: { type: "STRING", description: "Action or element target name" },
                               selector: { type: "STRING", description: "CSS element selector" },
-                              view: { type: "STRING", description: "Target screen: 'chat', 'writing', 'files', 'projects', 'settings', 'voice'" }
+                              view: { type: "STRING", description: "Target screen: 'chat', 'writing', 'files', 'projects', 'settings', 'voice'" },
+                              text: { type: "STRING", description: "Text to search for when clicking by visible text" },
+                              direction: { type: "STRING", description: "Scroll direction: 'up' or 'down'" },
+                              amount: { type: "NUMBER", description: "Scroll amount in pixels (default 400)" },
+                              title: { type: "STRING", description: "Title for artifact" },
+                              html: { type: "STRING", description: "HTML content for artifact" }
                             },
                             required: ["action"]
                           }
@@ -574,6 +674,7 @@ If the user says "bye" or "goodbye", respond with a very brief, polite farewell.
   }
 
   _stopMicrophoneStream() {
+    this.isMicActive = false;
     this._stopMicrophoneProcessor();
 
     if (this.microphoneStream) {
@@ -810,7 +911,10 @@ If the user says "bye" or "goodbye", respond with a very brief, polite farewell.
       for (const fc of functionCalls) {
         let result = { success: true };
 
-        if (fc.name === 'change_voice' && fc.args?.voiceName) {
+        if (fc.name === 'web_search' && fc.args?.query) {
+          result = await executeWebSearch(fc.args.query);
+        }
+        else if (fc.name === 'change_voice' && fc.args?.voiceName) {
           const rawVoice = fc.args.voiceName.trim();
           const targetVoice = rawVoice.charAt(0).toUpperCase() + rawVoice.slice(1).toLowerCase();
           console.log('[Voice Agent] Dynamic voice switch requested:', targetVoice);
@@ -1081,6 +1185,7 @@ If the user says "bye" or "goodbye", respond with a very brief, polite farewell.
     if (this.onStateChange) {
       this.onStateChange({
         isListening: this.isListening,
+        isMicActive: this.isMicActive, // Pass explicit mic state
         isSpeaking: this.isSpeaking,
         isProcessing: this.isProcessing
       });

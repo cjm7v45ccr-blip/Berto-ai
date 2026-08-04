@@ -2209,6 +2209,7 @@ function messageMarkup(message) {
 function appendMessage(message) {
   store.addMessage(message);
   renderMessages();
+  // Chat messages stay strictly inside Chat tab — no background reading to Live
 }
 
 function updateMessageView(id, content, extra = {}) {
@@ -2440,7 +2441,17 @@ async function executeUiSequence(actions) {
         await sleep(350);
       }
       else if (type === 'type' || type === 'type_text' || type === 'fill') {
-        const selector = step.selector || step.target;
+        let selector = step.selector || step.target || '#prompt';
+        if (selector === 'chat' || selector === 'prompt' || selector === 'chat-bar') {
+          selector = '#prompt';
+        }
+        
+        // Ensure we are on chat route if typing into the main prompt bar
+        if (selector === '#prompt' && store.state.route !== 'chat') {
+          route('chat');
+          await sleep(300);
+        }
+
         const el = await waitForElement(selector);
 
         if (el) {
@@ -2448,10 +2459,16 @@ async function executeUiSequence(actions) {
           if (step.clear !== false) el.value = '';
 
           const text = step.value || step.text || '';
-          for (let i = 0; i < text.length; i++) {
-            el.value += text[i];
+          const batchSize = step.speed ? 1 : 4;
+
+          for (let i = 0; i < text.length; i += batchSize) {
+            el.value += text.slice(i, i + batchSize);
             el.dispatchEvent(new Event('input', { bubbles: true }));
-            if (selector === '#writing-input') writingMetrics();
+            if (selector === '#writing-input' && typeof writingMetrics === 'function') writingMetrics();
+            if (selector === '#prompt') {
+              updateCount();
+              resizePrompt();
+            }
             await sleep(step.speed || 15);
           }
           el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -2490,14 +2507,74 @@ async function executeUiSequence(actions) {
         await sleep(step.ms || 500);
       }
       else if (type === 'send_chat') {
-        const messageText = step.value || step.text || '';
+        const messageText = step.value || step.text || $('#prompt')?.value.trim() || '';
+        route('chat');
+        await sleep(300);
+
         if (messageText) {
-          route('chat');
-          await sleep(300);
-          toast(`${LOGO_HTML} Sending autonomous chat...`);
+          const promptEl = $('#prompt');
+          if (promptEl) {
+            promptEl.value = messageText;
+            updateCount();
+            resizePrompt();
+          }
+          toast(`${LOGO_HTML} Sending query to chat...`);
+          await sleep(200);
           send(messageText);
         }
         await sleep(500);
+      }
+      else if (type === 'click_text' || type === 'click_by_text') {
+        const searchText = (step.text || step.value || '').toLowerCase().trim();
+        if (searchText) {
+          const candidates = [...document.querySelectorAll('button, a, select, [role="button"], .chat-item, .nav-item')];
+          const match = candidates.find(el => (el.textContent || '').toLowerCase().includes(searchText));
+
+          if (match) {
+            match.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await sleep(200);
+            match.focus?.();
+            match.click();
+            toast(`${LOGO_HTML} Clicked element containing "${searchText}"`);
+          } else {
+            toast(`Could not find element with text: "${searchText}"`, 'warn');
+          }
+        }
+        await sleep(300);
+      }
+      else if (type === 'scroll' || type === 'scroll_view') {
+        const direction = step.direction || 'down';
+        const targetEl = step.selector ? $(step.selector) : ($('.chat-scroll') || window);
+        const amount = step.amount || 400;
+
+        if (targetEl) {
+          if (targetEl.scrollBy) {
+            targetEl.scrollBy({ top: direction === 'down' ? amount : -amount, behavior: 'smooth' });
+          } else {
+            window.scrollBy({ top: direction === 'down' ? amount : -amount, behavior: 'smooth' });
+          }
+          toast(`${LOGO_HTML} Scrolled ${direction}`);
+        }
+        await sleep(300);
+      }
+      else if (type === 'create_artifact' || type === 'open_artifact') {
+        const title = step.title || 'Interactive Application';
+        const htmlContent = step.html || step.code || step.value || '';
+
+        if (htmlContent) {
+          openArtifact(htmlContent, title);
+          toast(`${LOGO_HTML} Launched Artifact: "${title}"`, 'success');
+        } else {
+          toast(`No HTML content provided for artifact`, 'error');
+        }
+        await sleep(400);
+      }
+      else if (type === 'show_live_popup' || type === 'show_summary_popup') {
+        const title = step.title || 'Live Summary';
+        const content = step.value || step.text || step.content || 'No summary text generated.';
+        
+        showLiveSummaryPopup(title, content);
+        await sleep(300);
       }
       else if (type === 'new_chat') {
         store.addChat();
@@ -3370,11 +3447,52 @@ function closeArtifact() {
   }
 }
 
+// ==========================================
+// SUPERCHARGED KANBAN TASK ENGINE
+// ==========================================
+
 function getKanbanTasks() {
   return readStorage(`${INSTANCE_PREFIX}-kanban-tasks`, [
-    { id: '1', title: 'System Architecture', desc: 'Design local-first Gemini state engine', status: 'done' },
-    { id: '2', title: 'Voice Mode Integration', desc: 'Connect Gemini 3.1 Flash Live WebSockets', status: 'in-progress' },
-    { id: '3', title: 'PWA Desktop App', desc: 'Add offline service worker and manifest', status: 'todo' }
+    {
+      id: 'task_1',
+      title: 'Design Berto Workspace Architecture',
+      desc: 'Build local-first IndexedDB storage and multi-modal live stream context',
+      status: 'done',
+      priority: 'high',
+      tag: 'Feature',
+      dueDate: '',
+      subtasks: [
+        { text: 'Local IndexedDB setup', completed: true },
+        { text: 'Token streaming engine', completed: true }
+      ]
+    },
+    {
+      id: 'task_2',
+      title: 'Integrate Gemini 3.1 Flash Live Voice',
+      desc: 'Connect WebSockets for low-latency voice, camera vision, and screen sharing',
+      status: 'in-progress',
+      priority: 'urgent',
+      tag: 'AI',
+      dueDate: '',
+      subtasks: [
+        { text: 'WebSocket audio processor', completed: true },
+        { text: 'Real-time camera frame stream', completed: true },
+        { text: 'Voice persona selection', completed: false }
+      ]
+    },
+    {
+      id: 'task_3',
+      title: 'PWA Desktop Manifest & Offline SW',
+      desc: 'Configure service worker caching and offline fallback for instant desktop launches',
+      status: 'todo',
+      priority: 'medium',
+      tag: 'Docs',
+      dueDate: '',
+      subtasks: [
+        { text: 'Service worker precache', completed: false },
+        { text: 'Web App Manifest icons', completed: false }
+      ]
+    }
   ]);
 }
 
@@ -3384,36 +3502,391 @@ function saveKanbanTasks(tasks) {
 }
 
 function renderKanbanBoard() {
-  const tasks = getKanbanTasks();
+  const allTasks = getKanbanTasks();
+  const search = ($('#kanban-search')?.value || '').toLowerCase().trim();
+  const priorityFilter = $('#kanban-filter-priority')?.value || 'all';
+  const tagFilter = $('#kanban-filter-tag')?.value || 'all';
+
+  // Apply Search & Filters
+  const filteredTasks = allTasks.filter(t => {
+    const matchesSearch = !search || 
+      t.title.toLowerCase().includes(search) || 
+      t.desc.toLowerCase().includes(search) ||
+      (t.subtasks && t.subtasks.some(st => st.text.toLowerCase().includes(search)));
+
+    const matchesPriority = priorityFilter === 'all' || t.priority === priorityFilter;
+    const matchesTag = tagFilter === 'all' || t.tag === tagFilter;
+
+    return matchesSearch && matchesPriority && matchesTag;
+  });
+
   const statuses = ['todo', 'in-progress', 'done'];
 
   statuses.forEach(status => {
     const listEl = $(`#tasks-${status}`);
     const countEl = $(`#count-${status}`);
-    const filtered = tasks.filter(t => t.status === status);
+    const tasksInCol = filteredTasks.filter(t => t.status === status);
 
-    if (countEl) countEl.textContent = filtered.length;
+    if (countEl) countEl.textContent = tasksInCol.length;
 
     if (listEl) {
-      listEl.innerHTML = filtered.map(t => `
-        <div class="kanban-card" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${t.id}')">
-          <h4>${escapeHtml(t.title)}</h4>
-          <p>${escapeHtml(t.desc)}</p>
-        </div>
-      `).join('') || '<p class="empty-copy">No tasks</p>';
+      listEl.innerHTML = tasksInCol.map(t => {
+        const priorityClass = `prio-${t.priority || 'medium'}`;
+        const subtasksTotal = t.subtasks ? t.subtasks.length : 0;
+        const subtasksDone = t.subtasks ? t.subtasks.filter(st => st.completed).length : 0;
+        const subtaskRatio = subtasksTotal ? Math.round((subtasksDone / subtasksTotal) * 100) : 0;
+
+        return `
+          <div class="kanban-card" draggable="true" 
+               ondragstart="handleKanbanDragStart(event, '${t.id}')"
+               onclick="openEditTaskModal('${t.id}')">
+            
+            <div class="task-badges">
+              <span class="priority-badge ${priorityClass}">${escapeHtml(t.priority || 'Medium')}</span>
+              ${t.tag ? `<span class="tag-badge">${escapeHtml(t.tag)}</span>` : ''}
+            </div>
+
+            <h4 class="kanban-card-title">${escapeHtml(t.title)}</h4>
+            ${t.desc ? `<p class="kanban-card-desc">${escapeHtml(t.desc)}</p>` : ''}
+
+            ${subtasksTotal > 0 ? `
+              <div class="subtask-progress">
+                <span>✓ ${subtasksDone}/${subtasksTotal}</span>
+                <div class="subtask-bar">
+                  <div class="subtask-fill" style="width: ${subtaskRatio}%"></div>
+                </div>
+              </div>
+            ` : ''}
+
+            <div class="task-card-footer">
+  <span class="task-due-date">
+    ${t.dueDate ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${escapeHtml(t.dueDate)}` : ''}
+  </span>
+  <div class="task-card-actions" onclick="event.stopPropagation()">
+    <button class="task-action-btn" onclick="openEditTaskModal('${t.id}')" title="Edit Task" aria-label="Edit Task">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+</button>
+<button class="task-action-btn danger-hover" onclick="deleteTask('${t.id}')" title="Delete Task" aria-label="Delete Task">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+</button>
+  </div>
+</div>
+          </div>
+        `;
+      }).join('') || `<p class="empty-copy">No tasks in ${status.replace('-', ' ')}</p>`;
     }
   });
 }
 
+// Drag & Drop Event Handlers
+function handleKanbanDragStart(event, taskId) {
+  event.dataTransfer.setData('text/plain', taskId);
+  event.dataTransfer.effectAllowed = 'move';
+}
+
+function handleKanbanDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+}
+
+function handleKanbanDragEnter(event) {
+  event.preventDefault();
+  const col = event.currentTarget.closest('.kanban-column');
+  if (col) col.classList.add('drag-over');
+}
+
+function handleKanbanDragLeave(event) {
+  const col = event.currentTarget.closest('.kanban-column');
+  if (col) col.classList.remove('drag-over');
+}
+
 function handleKanbanDrop(event, targetStatus) {
   event.preventDefault();
+  const col = event.currentTarget.closest('.kanban-column');
+  if (col) col.classList.remove('drag-over');
+
   const taskId = event.dataTransfer.getData('text/plain');
   const tasks = getKanbanTasks();
   const task = tasks.find(t => t.id === taskId);
-  if (task) {
+  
+  if (task && task.status !== targetStatus) {
     task.status = targetStatus;
     saveKanbanTasks(tasks);
-    toast(`Task moved to ${targetStatus.replace('-', ' ')}`);
+    toast(`Task moved to ${targetStatus.replace('-', ' ').toUpperCase()}`, 'info');
+  }
+}
+
+// Open Modal to Create or Edit Task
+function openEditTaskModal(taskId = null, defaultStatus = 'todo') {
+  const tasks = getKanbanTasks();
+  const task = tasks.find(t => t.id === taskId) || {
+    id: `task_${Date.now()}`,
+    title: '',
+    desc: '',
+    status: defaultStatus,
+    priority: 'medium',
+    tag: 'Feature',
+    dueDate: '',
+    subtasks: []
+  };
+
+  const isNew = !taskId;
+
+  const subtasksHtml = (task.subtasks || []).map((st, idx) => `
+    <div class="subtask-row">
+      <input type="checkbox" ${st.completed ? 'checked' : ''} onchange="toggleSubtaskInModal(${idx})">
+      <span class="${st.completed ? 'completed' : ''}">${escapeHtml(st.text)}</span>
+      <span class="subtask-delete" onclick="removeSubtaskInModal(${idx})">✕</span>
+    </div>
+  `).join('');
+
+  openModal(isNew ? 'Create New Task' : 'Edit Task Details', `
+    <div class="modal-label">
+      <span>Task Title</span>
+      <input class="search-input" id="modal-task-title" value="${escapeHtml(task.title)}" placeholder="e.g. Build authentication UI">
+    </div>
+
+    <div class="modal-label">
+      <span>Description & Notes</span>
+      <textarea class="search-input" id="modal-task-desc" rows="3" placeholder="Provide background or technical details...">${escapeHtml(task.desc)}</textarea>
+    </div>
+
+    <div class="profile-fields">
+      <div class="modal-label">
+        <span>Status</span>
+        <select id="modal-task-status">
+          <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>To Do</option>
+          <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+          <option value="done" ${task.status === 'done' ? 'selected' : ''}>Completed</option>
+        </select>
+      </div>
+
+      <div class="modal-label">
+        <span>Priority</span>
+        <select id="modal-task-priority">
+          <option value="urgent" ${task.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
+          <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
+          <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
+          <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="profile-fields">
+      <div class="modal-label">
+        <span>Category Tag</span>
+        <select id="modal-task-tag">
+          <option value="Feature" ${task.tag === 'Feature' ? 'selected' : ''}>Feature</option>
+          <option value="Bug" ${task.tag === 'Bug' ? 'selected' : ''}>Bug</option>
+          <option value="Design" ${task.tag === 'Design' ? 'selected' : ''}>Design</option>
+          <option value="Research" ${task.tag === 'Research' ? 'selected' : ''}>Research</option>
+          <option value="Docs" ${task.tag === 'Docs' ? 'selected' : ''}>Docs</option>
+          <option value="AI" ${task.tag === 'AI' ? 'selected' : ''}>AI</option>
+        </select>
+      </div>
+
+      <div class="modal-label">
+        <span>Due Date</span>
+        <input type="date" class="search-input" id="modal-task-date" value="${task.dueDate || ''}">
+      </div>
+    </div>
+
+    <div class="modal-label">
+      <span>Subtasks & Checklist</span>
+      <div class="subtasks-checklist" id="modal-subtasks-list">
+        ${subtasksHtml || '<p class="empty-copy">No subtasks added yet</p>'}
+      </div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <input class="search-input" id="modal-new-subtask-text" placeholder="Add a subtask..." onkeydown="if(event.key==='Enter'){event.preventDefault();addSubtaskInModal();}">
+        <button class="button ghost" onclick="addSubtaskInModal()">Add</button>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="justify-content:space-between; margin-top:20px;">
+      ${!isNew ? `<button class="button danger" onclick="deleteTask('${task.id}'); closeModal();">Delete Task</button>` : '<div></div>'}
+      <div style="display:flex; gap:10px;">
+        <button class="button ghost" onclick="closeModal()">Cancel</button>
+        <button class="button primary glow-btn" onclick="saveTaskFromModal('${task.id}', ${isNew})">Save Task</button>
+      </div>
+    </div>
+  `);
+
+  window._activeModalSubtasks = task.subtasks ? [...task.subtasks] : [];
+  setTimeout(() => $('#modal-task-title')?.focus(), 100);
+}
+
+function addSubtaskInModal() {
+  const input = $('#modal-new-subtask-text');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  window._activeModalSubtasks ||= [];
+  window._activeModalSubtasks.push({ text, completed: false });
+  input.value = '';
+
+  refreshModalSubtasksUI();
+}
+
+function toggleSubtaskInModal(index) {
+  if (window._activeModalSubtasks && window._activeModalSubtasks[index]) {
+    window._activeModalSubtasks[index].completed = !window._activeModalSubtasks[index].completed;
+    refreshModalSubtasksUI();
+  }
+}
+
+function removeSubtaskInModal(index) {
+  if (window._activeModalSubtasks) {
+    window._activeModalSubtasks.splice(index, 1);
+    refreshModalSubtasksUI();
+  }
+}
+
+function refreshModalSubtasksUI() {
+  const listEl = $('#modal-subtasks-list');
+  if (!listEl) return;
+
+  const html = (window._activeModalSubtasks || []).map((st, idx) => `
+    <div class="subtask-row">
+      <input type="checkbox" ${st.completed ? 'checked' : ''} onchange="toggleSubtaskInModal(${idx})">
+      <span class="${st.completed ? 'completed' : ''}">${escapeHtml(st.text)}</span>
+      <span class="subtask-delete" onclick="removeSubtaskInModal(${idx})">✕</span>
+    </div>
+  `).join('');
+
+  listEl.innerHTML = html || '<p class="empty-copy">No subtasks added yet</p>';
+}
+
+function saveTaskFromModal(taskId, isNew) {
+  const title = $('#modal-task-title')?.value.trim();
+  if (!title) {
+    return toast('Please provide a task title', 'error');
+  }
+
+  const desc = $('#modal-task-desc')?.value.trim() || '';
+  const status = $('#modal-task-status')?.value || 'todo';
+  const priority = $('#modal-task-priority')?.value || 'medium';
+  const tag = $('#modal-task-tag')?.value || 'Feature';
+  const dueDate = $('#modal-task-date')?.value || '';
+  const subtasks = window._activeModalSubtasks || [];
+
+  const tasks = getKanbanTasks();
+
+  if (isNew) {
+    tasks.push({ id: taskId, title, desc, status, priority, tag, dueDate, subtasks });
+  } else {
+    const idx = tasks.findIndex(t => t.id === taskId);
+    if (idx !== -1) {
+      tasks[idx] = { ...tasks[idx], title, desc, status, priority, tag, dueDate, subtasks };
+    }
+  }
+
+  saveKanbanTasks(tasks);
+  closeModal();
+  toast(isNew ? 'Task created' : 'Task updated', 'success');
+}
+
+function deleteTask(taskId) {
+  const tasks = getKanbanTasks().filter(t => t.id !== taskId);
+  saveKanbanTasks(tasks);
+  toast('Task deleted', 'info');
+}
+
+// Ask Berto AI to Solve/Draft the Task in Chat
+function askAiToSolveTask(taskId) {
+  const tasks = getKanbanTasks();
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  const promptText = `I have a task on my Project Board:
+- **Title**: ${task.title}
+- **Description**: ${task.desc || 'None'}
+- **Priority**: ${task.priority}
+- **Tag**: ${task.tag}
+
+Please execute this task or provide a comprehensive draft/solution for it.`;
+
+  route('chat');
+  send(promptText);
+}
+
+// Berto AI Task Generator / Auto-Breakdown Modal
+function openAiTaskBreakdownModal() {
+  openModal('✨ Berto AI Task Generator', `
+    <p class="modal-copy">Type a high-level goal or project feature. Berto will automatically break it down into actionable Kanban tasks with priorities, tags, and subtasks.</p>
+    <div class="modal-label">
+      <span>Project Goal or Feature</span>
+      <textarea class="search-input" id="ai-breakdown-goal" rows="3" placeholder="e.g. Build a user authentication system with OAuth, password reset, and email verification..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="button ghost" onclick="closeModal()">Cancel</button>
+      <button class="button primary glow-btn" id="generate-tasks-btn" onclick="generateAiTasks()">Generate Tasks</button>
+    </div>
+  `);
+  setTimeout(() => $('#ai-breakdown-goal')?.focus(), 100);
+}
+
+async function generateAiTasks() {
+  const goal = $('#ai-breakdown-goal')?.value.trim();
+  if (!goal) return toast('Please enter a goal', 'error');
+
+  const btn = $('#generate-tasks-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Generating Tasks...';
+  }
+
+  try {
+    const result = await api.request({
+      prompt: `Break down the following goal into 3 to 6 actionable project task cards for a Kanban board:
+
+Goal: "${goal}"
+
+Output ONLY a valid JSON array of objects with this structure:
+[
+  {
+    "title": "Task title",
+    "desc": "Short description",
+    "priority": "urgent" | "high" | "medium" | "low",
+    "tag": "Feature" | "Bug" | "Design" | "Research" | "Docs" | "AI",
+    "status": "todo",
+    "subtasks": ["Subtask 1", "Subtask 2"]
+  }
+]`,
+      system: 'You are an expert Agile Project Manager. Output ONLY valid JSON array with no extra markdown formatting or conversational text.',
+      preferred: store.state.model
+    });
+
+    const jsonMatch = result.text.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const generated = JSON.parse(jsonMatch[0]);
+      const currentTasks = getKanbanTasks();
+
+      generated.forEach(item => {
+        currentTasks.push({
+          id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          title: item.title || 'Generated Task',
+          desc: item.desc || '',
+          priority: item.priority || 'medium',
+          tag: item.tag || 'Feature',
+          status: item.status || 'todo',
+          dueDate: '',
+          subtasks: (item.subtasks || []).map(st => ({ text: typeof st === 'string' ? st : st.text, completed: false }))
+        });
+      });
+
+      saveKanbanTasks(currentTasks);
+      closeModal();
+      toast(`Successfully generated ${generated.length} tasks!`, 'success');
+    } else {
+      throw new Error('Invalid JSON format from AI');
+    }
+  } catch (err) {
+    toast(`Task generation failed: ${err.message}`, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Generate Tasks';
+    }
   }
 }
 
@@ -3898,14 +4371,9 @@ function handleAction(action, element) {
   } else if (action === 'dictate-notes') {
     toggleWritingDictation();
   } else if (action === 'new-kanban-task') {
-    const title = prompt('Task Title:');
-    const desc = prompt('Description:');
-    if (title) {
-      const tasks = getKanbanTasks();
-      tasks.push({ id: `task_${Date.now()}`, title, desc: desc || '', status: 'todo' });
-      saveKanbanTasks(tasks);
-      toast('New task created!');
-    }
+    openEditTaskModal();
+  } else if (action === 'ai-task-breakdown') {
+    openAiTaskBreakdownModal();
   } else if (action === 'fork-chat') {
     const messageId = element.dataset.messageId;
     const currentChat = store.activeChat;
@@ -4120,34 +4588,35 @@ function initVoiceView() {
       const status = $('#voice-status');
       const toggleBtn = $('#voice-toggle-btn');
 
-      if (state.isListening || state.isSpeaking) {
+      if (state.isMicActive) {
         startSessionTimer();
       }
 
       // Auto-reset Read Aloud button when speech finishes
-      if (!state.isSpeaking && !state.isListening && !state.isProcessing) {
+      if (!state.isSpeaking && !state.isMicActive && !state.isProcessing) {
         resetReadAloudButtons();
       }
 
       updateVoiceDashboardPills();
 
       if (indicator) {
-        if (state.isListening) indicator.className = 'voice-indicator is-listening';
+        if (state.isMicActive) indicator.className = 'voice-indicator is-listening';
         else if (state.isSpeaking) indicator.className = 'voice-indicator is-speaking';
         else if (state.isProcessing) indicator.className = 'voice-indicator is-processing';
         else indicator.className = 'voice-indicator is-idle';
       }
 
       if (status) {
-        if (state.isListening) { status.textContent = 'Listening...'; status.className = 'voice-status is-active'; }
+        if (state.isMicActive) { status.textContent = 'Listening...'; status.className = 'voice-status is-active'; }
         else if (state.isSpeaking) { status.textContent = 'Speaking...'; status.className = 'voice-status is-active'; }
         else if (state.isProcessing) { status.textContent = 'Thinking...'; status.className = 'voice-status is-processing'; }
-        else { status.textContent = 'Ready to listen'; status.className = 'voice-status'; }
+        else { status.textContent = 'Ready'; status.className = 'voice-status'; }
       }
       
+      // FIX: ONLY turn red & say "Stop Listening" if MICROPHONE is actively recording
       if (toggleBtn) {
         const label = toggleBtn.querySelector('.voice-button-label');
-        if (state.isListening) {
+        if (state.isMicActive) {
           toggleBtn.classList.add('is-active');
           if (label) label.textContent = 'Stop Listening';
         } else {
@@ -4175,6 +4644,19 @@ function initVoiceView() {
       addVoiceConversationItem('user', text);
 
       const cmd = text.toLowerCase().trim();
+
+      // Intercept "ask berto [query]" or "type [query] in chat" or "send to chat [query]"
+      const askBertoMatch = text.match(/\b(?:ask berto|ask in chat|type in chat|send to chat|put in chat bar)\s+(?:to\s+)?(.+)/i);
+      if (askBertoMatch && askBertoMatch[1]) {
+        const query = askBertoMatch[1].trim();
+        toast(`${LOGO_HTML} Live Voice: Filling chat bar and sending...`, 'info');
+        executeUiSequence([
+          { action: "navigate", view: "chat" },
+          { action: "type", selector: "#prompt", value: query },
+          { action: "send_chat", value: query }
+        ]);
+        return;
+      }
 
       // Instant local execution for spoken photo snapshot commands
       if (/\b(take|snap|capture|insert|make) (a )?(photo|picture|image|snapshot)\b/i.test(cmd)) {
@@ -4363,6 +4845,61 @@ function addVoiceConversationItem(role, text) {
   `;
   container.appendChild(item);
   container.scrollTop = container.scrollHeight;
+}
+
+// 1. Text Q -> Speech A Handler
+async function sendLiveTextPrompt() {
+  const input = $('#live-text-input');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  if (!voiceEngineInstance) {
+    initVoiceView();
+  }
+
+  // Ensure WebSocket session is connected without requiring microphone eavesdropping
+  if (!voiceEngineInstance.isListening && (!voiceEngineInstance.ws || voiceEngineInstance.ws.readyState !== WebSocket.OPEN)) {
+    await voiceEngineInstance.startListening({ enableMicrophone: false });
+  }
+
+  // Clear input
+  input.value = '';
+
+  // Show user query in live conversation log
+  addVoiceConversationItem('user', text);
+
+  toast(`${LOGO_HTML} Sent text query to Berto Live...`, 'info');
+
+  // Send text turn directly to Gemini Live WebSocket
+  voiceEngineInstance.sendTextPrompt(text);
+}
+
+// Bind Enter key and Click listener to Live Prompt Bar
+$('#live-text-send-btn')?.addEventListener('click', sendLiveTextPrompt);
+$('#live-text-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendLiveTextPrompt();
+  }
+});
+
+// 2. Floating Live Summary Pop-Up Controls
+function showLiveSummaryPopup(title, content) {
+  const popup = $('#live-summary-popup');
+  const titleEl = $('#summary-popup-title');
+  const bodyEl = $('#summary-popup-body');
+
+  if (popup && bodyEl) {
+    if (titleEl) titleEl.textContent = title || 'Live Summary';
+    bodyEl.innerHTML = typeof renderMarkdown === 'function' ? renderMarkdown(content) : content;
+    popup.hidden = false;
+    toast(`${LOGO_HTML} Opened Live Summary Pop-up`, 'info');
+  }
+}
+
+function closeLiveSummaryPopup() {
+  const popup = $('#live-summary-popup');
+  if (popup) popup.hidden = true;
 }
 
 async function summarizeAndSendToLive() {
