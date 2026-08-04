@@ -5099,54 +5099,107 @@ document.getElementById('persona-select')?.addEventListener('change', () => {
 renderGemSelector();
 
 // =========================================================
-// FIRST-TIME SETUP OVERLAY
+// FIRST-TIME SETUP OVERLAY (FIXED & SAFE)
 // =========================================================
 function initSetup() {
-  const overlay = $('#setup-overlay');
-  if (!overlay) return;
+  const runSetup = () => {
+    let overlay = $('#setup-overlay');
 
-  // If setup has already been completed, keep the overlay hidden
-  if (localStorage.getItem(`${INSTANCE_PREFIX}-setup-complete`)) {
-    overlay.hidden = true;
-    return;
-  }
-
-  overlay.hidden = false;
-
-  const nameInput = $('#setup-name');
-  const apiKeyInput = $('#setup-api-key');
-  const submitBtn = $('#setup-submit');
-
-  function updateSubmitState() {
-    const hasName = (nameInput?.value || '').trim().length > 0;
-    const hasKey = (apiKeyInput?.value || '').trim().length > 0;
-    if (submitBtn) submitBtn.disabled = !(hasName && hasKey);
-  }
-
-  nameInput?.addEventListener('input', updateSubmitState);
-  apiKeyInput?.addEventListener('input', updateSubmitState);
-
-  // Submit: save name + API key, then dismiss overlay
-  submitBtn?.addEventListener('click', () => {
-    const name = (nameInput?.value || '').trim();
-    const key = (apiKeyInput?.value || '').trim();
-
-    if (name) savePreferences({ userName: name });
-    if (key) {
-      try { localStorage.setItem(CONFIG.storage.apiKey, key); } catch (e) {}
-      toast('API key saved locally');
+    // 1. Safe storage read using readStorage helper
+    const isComplete = readStorage(`${INSTANCE_PREFIX}-setup-complete`, false);
+    if (isComplete) {
+      if (overlay) overlay.hidden = true;
+      return;
     }
 
-    try { localStorage.setItem(`${INSTANCE_PREFIX}-setup-complete`, 'true'); } catch (e) {}
-    overlay.hidden = true;
-    toast(`Welcome, ${name || 'friend'}!`);
-  });
+    // 2. Fallback: Dynamically construct setup overlay if missing from HTML DOM
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'setup-overlay';
+      overlay.className = 'modal-backdrop';
+      overlay.innerHTML = `
+        <div class="modal-card setup-card" style="max-width: 440px; padding: 28px; text-align: center;">
+          <div style="font-size: 32px; margin-bottom: 12px;">👋</div>
+          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Welcome to Berto AI</h2>
+          <p style="color: var(--muted, #94a3b8); font-size: 13px; margin-bottom: 20px;">
+            Set up your name and Gemini API key to start using your workspace.
+          </p>
+          <div style="text-align: left; display: flex; flex-direction: column; gap: 14px;">
+            <label class="modal-label">Your Name
+              <input type="text" id="setup-name" class="search-input" placeholder="e.g. Alex" autofocus>
+            </label>
+            <label class="modal-label">Gemini API Key
+              <input type="password" id="setup-api-key" class="search-input" placeholder="AIzaSy...">
+            </label>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 24px;">
+            <button id="setup-skip" class="button ghost" style="flex: 1;">Skip for now</button>
+            <button id="setup-submit" class="button primary" style="flex: 2;" disabled>Get Started</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
 
-  // Skip: just mark setup complete and dismiss
-  $('#setup-skip')?.addEventListener('click', () => {
-    try { localStorage.setItem(`${INSTANCE_PREFIX}-setup-complete`, 'true'); } catch (e) {}
-    overlay.hidden = true;
-  });
+    overlay.hidden = false;
+
+    const nameInput = $('#setup-name');
+    const apiKeyInput = $('#setup-api-key');
+    const submitBtn = $('#setup-submit');
+
+    // Pre-fill if values already exist in storage
+    if (nameInput) nameInput.value = readStorage(CONFIG.storage.preferences, {}).userName || '';
+    if (apiKeyInput) apiKeyInput.value = readStorage(CONFIG.storage.apiKey, '') || '';
+
+    function updateSubmitState() {
+      const hasName = (nameInput?.value || '').trim().length > 0;
+      const hasKey = (apiKeyInput?.value || '').trim().length > 0;
+      if (submitBtn) submitBtn.disabled = !(hasName && hasKey);
+    }
+
+    // 3. Explicitly evaluate submit button status on open
+    updateSubmitState();
+
+    nameInput?.addEventListener('input', updateSubmitState);
+    apiKeyInput?.addEventListener('input', updateSubmitState);
+
+    // Submit handler
+    submitBtn?.onclick = () => {
+      const name = (nameInput?.value || '').trim();
+      const key = (apiKeyInput?.value || '').trim();
+
+      if (name) savePreferences({ userName: name });
+      if (key) {
+        writeStorage(CONFIG.storage.apiKey, key);
+        toast('API key saved locally');
+      }
+
+      writeStorage(`${INSTANCE_PREFIX}-setup-complete`, 'true');
+      overlay.hidden = true;
+      toast(`Welcome, ${name || 'friend'}!`);
+      
+      // Trigger restriction check once key is saved
+      if (typeof detectManagedAccountRestrictions === 'function') {
+        detectManagedAccountRestrictions();
+      }
+    };
+
+    // Skip handler
+    const skipBtn = $('#setup-skip');
+    if (skipBtn) {
+      skipBtn.onclick = () => {
+        writeStorage(`${INSTANCE_PREFIX}-setup-complete`, 'true');
+        overlay.hidden = true;
+      };
+    }
+  };
+
+  // 4. Ensure DOM is fully loaded before executing setup
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runSetup);
+  } else {
+    runSetup();
+  }
 }
 
 // =========================================================
