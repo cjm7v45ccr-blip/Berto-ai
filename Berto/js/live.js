@@ -2,6 +2,606 @@
 const LIVE_MODEL = "models/gemini-3.1-flash-live-preview";
 const LIVE_MODEL_LABEL = "Gemini 3.1 Flash Live";
 
+// --- SESSION TIMER & DASHBOARD STATE CONTROLLER ---
+let sessionTimerInterval = null;
+let sessionSeconds = 0;
+
+function startSessionTimer() {
+  if (sessionTimerInterval) return;
+  sessionTimerInterval = setInterval(() => {
+    sessionSeconds++;
+    const mins = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+    const secs = String(sessionSeconds % 60).padStart(2, '0');
+    const timerEl = $('#voice-session-timer');
+    if (timerEl) timerEl.textContent = `${mins}:${secs}`;
+  }, 1000);
+}
+
+function resetSessionTimer() {
+  if (sessionTimerInterval) {
+    clearInterval(sessionTimerInterval);
+    sessionTimerInterval = null;
+  }
+  sessionSeconds = 0;
+  const timerEl = $('#voice-session-timer');
+  if (timerEl) timerEl.textContent = '00:00';
+}
+
+// Update Modality Pills (Mic & Vision Status)
+function updateVoiceDashboardPills() {
+  const micPill = $('#pill-mic');
+  const visionPill = $('#pill-vision');
+  const visionText = $('#pill-vision-text');
+  const micText = $('#pill-mic-text');
+
+  const hasCamera = !!(window.voiceEngineInstance && window.voiceEngineInstance.videoTrack);
+  const hasScreen = !!(window.voiceEngineInstance && window.voiceEngineInstance.screenTrack);
+
+  if (visionPill && visionText) {
+    if (hasCamera) {
+      visionPill.classList.add('is-active');
+      visionText.textContent = 'Camera On';
+    } else if (hasScreen) {
+      visionPill.classList.add('is-active');
+      visionText.textContent = 'Screen Sharing';
+    } else {
+      visionPill.classList.remove('is-active');
+      visionText.textContent = 'Vision Off';
+    }
+  }
+
+  if (micPill) {
+    const isActive = !!(window.voiceEngineInstance && window.voiceEngineInstance.isListening);
+    micPill.classList.toggle('is-active', isActive);
+    if (micText) micText.textContent = isActive ? 'Mic Active' : 'Mic Off';
+  }
+}
+
+// Voice Mode Integration
+let voiceViewInitialized = false;
+let voiceTurnCount = 0;
+
+function initVoiceView() {
+  const indicator = $('#voice-indicator');
+  const status = $('#voice-status');
+  const transcript = $('#voice-transcript');
+  const response = $('#voice-response');
+  const toggleBtn = $('#voice-toggle-btn');
+  const conversation = $('#voice-conversation');
+  
+  if (typeof startCanvasVisualizer === 'function') {
+    startCanvasVisualizer();
+  }
+
+  if (voiceViewInitialized && window.voiceEngineInstance) {
+    if (toggleBtn) {
+      if (window.voiceEngineInstance.isListening) {
+        toggleBtn.classList.add('is-active');
+        const label = toggleBtn.querySelector('.voice-button-label');
+        if (label) label.textContent = 'Stop Listening';
+      } else if (window.voiceEngineInstance.isProcessing) {
+        const label = toggleBtn.querySelector('.voice-button-label');
+        if (label) label.textContent = 'Processing...';
+      } else {
+        toggleBtn.classList.remove('is-active');
+        const label = toggleBtn.querySelector('.voice-button-label');
+        if (label) label.textContent = 'Start Speaking';
+      }
+    }
+    return;
+  }
+  
+  if (indicator) indicator.className = 'voice-indicator is-idle';
+  if (status) { status.textContent = 'Ready to listen'; status.className = 'voice-status'; }
+  if (transcript) { transcript.textContent = ''; transcript.className = 'voice-transcript'; }
+  if (response) { response.textContent = ''; response.className = 'voice-response'; }
+  if (toggleBtn) {
+    toggleBtn.className = 'voice-button';
+    const label = toggleBtn.querySelector('.voice-button-label');
+    if (label) label.textContent = 'Start Speaking';
+    toggleBtn.disabled = false;
+  }
+  if (conversation) conversation.innerHTML = '';
+  
+  const key = localStorage.getItem(CONFIG.storage.apiKey)?.trim();
+  if (!key) {
+    if (status) {
+      status.textContent = 'Add your Gemini API key in Settings to use Voice mode.';
+    }
+    if (toggleBtn) toggleBtn.disabled = true;
+    return;
+  }
+  
+  if (typeof VoiceEngine !== 'undefined' && !window.voiceEngineInstance) {
+    window.voiceEngineInstance = new VoiceEngine();
+    
+    window.voiceEngineInstance.onStateChange = (state) => {
+      const indicator = $('#voice-indicator');
+      const status = $('#voice-status');
+      const toggleBtn = $('#voice-toggle-btn');
+
+      if (state.isMicActive) {
+        startSessionTimer();
+      }
+
+      if (!state.isSpeaking && !state.isMicActive && !state.isProcessing) {
+        resetReadAloudButtons();
+      }
+
+      updateVoiceDashboardPills();
+
+      if (indicator) {
+        if (state.isMicActive) indicator.className = 'voice-indicator is-listening';
+        else if (state.isSpeaking) indicator.className = 'voice-indicator is-speaking';
+        else if (state.isProcessing) indicator.className = 'voice-indicator is-processing';
+        else indicator.className = 'voice-indicator is-idle';
+      }
+
+      if (status) {
+        if (state.isMicActive) { status.textContent = 'Listening...'; status.className = 'voice-status is-active'; }
+        else if (state.isSpeaking) { status.textContent = 'Speaking...'; status.className = 'voice-status is-active'; }
+        else if (state.isProcessing) { status.textContent = 'Thinking...'; status.className = 'voice-status is-processing'; }
+        else { status.textContent = 'Ready'; status.className = 'voice-status'; }
+      }
+      
+      if (toggleBtn) {
+        const label = toggleBtn.querySelector('.voice-button-label');
+        if (state.isMicActive) {
+          toggleBtn.classList.add('is-active');
+          if (label) label.textContent = 'Stop Listening';
+        } else {
+          toggleBtn.classList.remove('is-active');
+          if (label) label.textContent = state.isProcessing ? 'Processing...' : 'Start Speaking';
+        }
+      }
+    };
+    
+    window.voiceEngineInstance.onTranscript = (text, isFinal) => {
+      const transcript = $('#voice-transcript');
+      if (transcript) {
+        if (isFinal) {
+          transcript.innerHTML = `<span class="final">${escapeHtml(text)}</span>`;
+          transcript.classList.add('is-visible');
+        } else {
+          transcript.innerHTML = `<span class="interim">${escapeHtml(text)}</span>`;
+          transcript.classList.add('is-visible');
+        }
+      }
+    };
+    
+    window.voiceEngineInstance.onUserMessage = (text) => {
+      addVoiceConversationItem('user', text);
+
+      const cmd = text.toLowerCase().trim();
+
+      const askBertoMatch = text.match(/\b(?:ask berto|ask in chat|type in chat|send to chat|put in chat bar)\s+(?:to\s+)?(.+)/i);
+      if (askBertoMatch && askBertoMatch[1]) {
+        const query = askBertoMatch[1].trim();
+        toast(`${LOGO_HTML} Live Voice: Filling chat bar and sending...`, 'info');
+        executeUiSequence([
+          { action: "navigate", view: "chat" },
+          { action: "type", selector: "#prompt", value: query },
+          { action: "send_chat", value: query }
+        ]);
+        return;
+      }
+
+      if (/\b(take|snap|capture|insert|make) (a )?(photo|picture|image|snapshot)\b/i.test(cmd)) {
+        toast(`${LOGO_HTML} Voice Command: Snapping photo...`, 'info');
+        executeUiSequence([{ action: "snap_photo", countdown: 2 }]);
+        return;
+      }
+
+      if (/\b(light mode|enable light theme|switch to light|change theme to light)\b/i.test(cmd)) {
+        savePreferences({ theme: 'light' });
+        toast('Theme changed to Light');
+      } 
+      else if (/\b(dark mode|enable dark theme|switch to dark|change theme to dark)\b/i.test(cmd)) {
+        savePreferences({ theme: 'dark' });
+        toast('Theme changed to Dark');
+      } 
+      else if (/\b(go to|open|show) (writing|files|settings|chat)\b/i.test(cmd)) {
+        const match = cmd.match(/(writing|files|settings|chat)/i);
+        if (match) {
+          route(match[0].toLowerCase());
+          toast(`Navigated to ${match[0]}`);
+        }
+      } 
+      else if (/\b(delete|remove) (this|current) chat\b/i.test(cmd)) {
+        if (store.activeChat) {
+          const title = store.activeChat.title;
+          store.deleteChat(store.activeChat.id);
+          renderChats();
+          renderMessages();
+          toast(`Deleted chat: "${title}"`);
+        }
+      } 
+      else if (/\b(new chat|start new chat|create new chat)\b/i.test(cmd)) {
+        store.addChat();
+        renderChats();
+        renderMessages();
+        toast('Started new conversation');
+      }
+    };
+
+    window.voiceEngineInstance.onResponse = (text) => {
+      const response = $('#voice-response');
+      if (response) {
+        response.textContent = text;
+        response.classList.add('is-visible');
+      }
+      addVoiceConversationItem('assistant', text);
+
+      const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+        try {
+          const actions = JSON.parse(jsonMatch[1]);
+          if (Array.isArray(actions)) {
+            executeUiSequence(actions);
+          }
+        } catch (e) {
+          console.error('Voice UI Action Execution Error:', e);
+        }
+      }
+    };
+    
+    window.voiceEngineInstance.onError = (msg) => {
+      toast(msg, 'error');
+      const status = $('#voice-status');
+      if (status) {
+        status.textContent = msg;
+        status.className = 'voice-status';
+      }
+    };
+    
+    window.voiceEngineInstance.onVolumeChange = (level) => {
+      const wave = $('#voice-wave');
+      if (wave) {
+        const bars = wave.querySelectorAll('span');
+        if (window.voiceEngineInstance.isSpeaking) {
+          bars.forEach(bar => bar.style.height = '');
+        } else if (window.voiceEngineInstance.isListening) {
+          const activeCount = Math.round((level / 100) * bars.length);
+          bars.forEach((bar, i) => {
+            const height = i < activeCount ? 16 + Math.random() * 20 : 6;
+            bar.style.height = `${height}px`;
+          });
+        } else {
+          bars.forEach(bar => bar.style.height = '');
+        }
+      }
+
+      const volFill = $('#bento-volume-fill');
+      const volVal = $('#bento-volume-val');
+      if (volFill) volFill.style.width = `${level}%`;
+      if (volVal) volVal.textContent = `${level}%`;
+    };
+    
+    voiceViewInitialized = true;
+    if (toggleBtn) toggleBtn.disabled = false;
+  }
+
+  const voiceSelect = document.getElementById('voice-select');
+  if (voiceSelect && !voiceSelect._voiceListenerAttached) {
+    voiceSelect._voiceListenerAttached = true;
+    voiceSelect.addEventListener('change', () => {
+      if (window.voiceEngineInstance && window.voiceEngineInstance.isListening) {
+        window.voiceEngineInstance.stopListening();
+        setTimeout(() => window.voiceEngineInstance.startListening(), 200);
+        toast('Switched voice tone');
+      }
+    });
+  }
+}
+
+function toggleVoice() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+
+  if (!window.globalAudioContext) {
+    window.globalAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (window.globalAudioContext.state === 'suspended') {
+    window.globalAudioContext.resume();
+  }
+
+  if (!window.voiceEngineInstance) {
+    initVoiceView();
+    if (window.voiceEngineInstance) {
+      window.voiceEngineInstance.audioContext = window.globalAudioContext;
+    }
+    setTimeout(() => toggleVoice(), 100);
+    return;
+  }
+  
+  if (window.voiceEngineInstance && !window.voiceEngineInstance.audioContext) {
+    window.voiceEngineInstance.audioContext = window.globalAudioContext;
+  }
+  
+  if (window.voiceEngineInstance.isListening) {
+    window.voiceEngineInstance.stopListening();
+    const toggleBtn = $('#voice-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.classList.remove('is-active');
+      const label = toggleBtn.querySelector('.voice-button-label');
+      if (label) label.textContent = 'Start Speaking';
+    }
+  } else if (window.voiceEngineInstance.isSpeaking) {
+    window.voiceEngineInstance.cancelSpeaking();
+  } else {
+    const transcript = $('#voice-transcript');
+    const response = $('#voice-response');
+    if (transcript) { transcript.textContent = ''; transcript.className = 'voice-transcript'; }
+    if (response) { response.textContent = ''; response.className = 'voice-response'; }
+    
+    window.voiceEngineInstance.startListening();
+  }
+}
+
+function resetVoice() {
+  if (window.voiceEngineInstance) {
+    window.voiceEngineInstance.resetConversation();
+  }
+
+  resetSessionTimer();
+  updateVoiceDashboardPills();
+
+  const transcript = $('#voice-transcript');
+  const response = $('#voice-response');
+  const conversation = $('#voice-conversation');
+  const toggleBtn = $('#voice-toggle-btn');
+  const indicator = $('#voice-indicator');
+  const status = $('#voice-status');
+
+  if (transcript) { transcript.textContent = ''; transcript.className = 'voice-transcript'; }
+  if (response) { response.textContent = ''; response.className = 'voice-response'; }
+  if (conversation) conversation.innerHTML = '';
+  if (toggleBtn) {
+    toggleBtn.classList.remove('is-active');
+    const label = toggleBtn.querySelector('.voice-button-label');
+    if (label) label.textContent = 'Start Speaking';
+  }
+  if (indicator) indicator.className = 'voice-indicator is-idle';
+  if (status) { status.textContent = 'Ready to listen'; status.className = 'voice-status'; }
+
+  if (typeof stopCanvasVisualizer === 'function') stopCanvasVisualizer();
+
+  toast('Voice conversation reset');
+}
+
+function addVoiceConversationItem(role, text) {
+  const container = $('#voice-conversation');
+  if (!container) return;
+  
+  const item = document.createElement('div');
+  item.className = `voice-conversation-item ${role}`;
+  item.innerHTML = `
+    <span class="conv-role">${role === 'user' ? 'You' : 'Berto'}</span>
+    <span class="conv-text">${escapeHtml(text)}</span>
+  `;
+  container.appendChild(item);
+  container.scrollTop = container.scrollHeight;
+}
+
+// 1. Text Q -> Speech A Handler
+async function sendLiveTextPrompt() {
+  const input = $('#live-text-input');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  if (!window.voiceEngineInstance) {
+    initVoiceView();
+  }
+
+  if (!window.voiceEngineInstance.isListening && (!window.voiceEngineInstance.ws || window.voiceEngineInstance.ws.readyState !== WebSocket.OPEN)) {
+    await window.voiceEngineInstance.startListening({ enableMicrophone: false });
+  }
+
+  input.value = '';
+
+  addVoiceConversationItem('user', text);
+
+  toast(`${LOGO_HTML} Sent text query to Berto Live...`, 'info');
+
+  window.voiceEngineInstance.sendTextPrompt(text);
+}
+
+// Bind Enter key and Click listener to Live Prompt Bar
+$('#live-text-send-btn')?.addEventListener('click', sendLiveTextPrompt);
+$('#live-text-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendLiveTextPrompt();
+  }
+});
+
+// 2. Floating Live Summary Pop-Up Controls
+function showLiveSummaryPopup(title, content) {
+  const popup = $('#live-summary-popup');
+  const titleEl = $('#summary-popup-title');
+  const bodyEl = $('#summary-popup-body');
+
+  if (popup && bodyEl) {
+    if (titleEl) titleEl.textContent = title || 'Live Summary';
+    bodyEl.innerHTML = typeof renderMarkdownEnhanced === 'function' ? renderMarkdownEnhanced(content) : (typeof renderMarkdown === 'function' ? renderMarkdown(content) : content);
+    popup.hidden = false;
+    toast(`${LOGO_HTML} Opened Live Summary Pop-up`, 'info');
+  }
+}
+
+function closeLiveSummaryPopup() {
+  const popup = $('#live-summary-popup');
+  if (popup) popup.hidden = true;
+}
+
+async function summarizeAndSendToLive() {
+  const messages = store.messages;
+  if (!messages || messages.length === 0) {
+    toast('No chat context available to send to Berto Live.', 'error');
+    return;
+  }
+
+  toast('Summarizing chat context for Berto Live...', 'info');
+
+  let summaryText = '';
+
+  try {
+    const chatTranscript = messages
+      .map(m => `${m.role === 'user' ? 'User' : 'Berto'}: ${m.content}`)
+      .join('\n\n');
+
+    const result = await api.request({
+      prompt: `Summarize the following chat context into a brief 2-3 sentence verbal summary for a voice session:\n\n${chatTranscript}`,
+      system: 'You are an executive briefing assistant. Provide ONLY a concise, direct, spoken-word summary of the conversation key points. Do not include markdown or preamble.',
+      preferred: store.state.model,
+      temperature: 0.3
+    });
+
+    summaryText = result.text.trim();
+  } catch (err) {
+    const lastUserMsg = messages.filter(m => m.role === 'user').at(-1)?.content || 'General chat context';
+    summaryText = `Recent topic discussed: "${lastUserMsg.slice(0, 120)}${lastUserMsg.length > 120 ? '...' : ''}" with ${messages.length} total messages.`;
+  }
+
+  route('voice');
+  initVoiceView();
+
+  const liveContainer = $('#voice-conversation');
+  if (liveContainer) {
+    const contextCard = document.createElement('div');
+    contextCard.className = 'voice-conversation-item assistant context-briefing';
+    contextCard.innerHTML = `
+      <span class="conv-role"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Live Context Briefing</span>
+      <div class="conv-text"><em>${escapeHtml(summaryText)}</em></div>
+    `;
+    liveContainer.appendChild(contextCard);
+    liveContainer.scrollTop = liveContainer.scrollHeight;
+  }
+
+  if (window.voiceEngineInstance) {
+    if (typeof window.voiceEngineInstance.injectContext === 'function') {
+      window.voiceEngineInstance.injectContext(summaryText);
+    } else {
+      window.voiceEngineInstance.conversationHistory = [
+        { role: 'system', content: `Current conversation context briefing: ${summaryText}` }
+      ];
+    }
+  }
+
+  toast('Chat context loaded into Berto Live!', 'info');
+
+  setTimeout(() => {
+    if (window.voiceEngineInstance && !window.voiceEngineInstance.isListening) {
+      toggleVoice();
+    }
+  }, 800);
+}
+
+function updateLiveAiVideoState() {
+  const pane = document.getElementById('voice-chat-pane');
+  const cameraBox = document.getElementById('camera-feed-box');
+  const screenBox = document.getElementById('screen-feed-box');
+  const cameraVideo = document.getElementById('camera-video-element');
+  const screenVideo = document.getElementById('screen-video-element');
+
+  const hasCamera = !!(window.voiceEngineInstance && window.voiceEngineInstance.videoTrack);
+  const hasScreen = !!(window.voiceEngineInstance && window.voiceEngineInstance.screenTrack);
+
+  if (cameraBox) cameraBox.hidden = !hasCamera;
+  if (screenBox) screenBox.hidden = !hasScreen;
+
+  if (hasCamera && cameraVideo) {
+    cameraVideo.srcObject = window.voiceEngineInstance.videoStream;
+  } else if (cameraVideo) {
+    cameraVideo.srcObject = null;
+  }
+
+  if (hasScreen && screenVideo) {
+    screenVideo.srcObject = window.voiceEngineInstance.screenStream;
+  } else if (screenVideo) {
+    screenVideo.srcObject = null;
+  }
+
+  if (hasCamera || hasScreen) {
+    pane?.classList.add('has-video');
+  } else {
+    pane?.classList.remove('has-video');
+  }
+}
+
+async function toggleVoiceCamera() {
+  if (!window.voiceEngineInstance) return;
+  
+  if (window.voiceEngineInstance.videoTrack) {
+    window.voiceEngineInstance.stopCamera();
+  } else {
+    if (window.voiceEngineInstance.screenTrack) {
+      window.voiceEngineInstance.stopScreenShare();
+    }
+    await window.voiceEngineInstance.startCamera();
+  }
+  
+  updateLiveAiVideoState();
+}
+
+async function toggleVoiceScreen() {
+  if (!window.voiceEngineInstance) return;
+
+  if (window.voiceEngineInstance.screenTrack) {
+    window.voiceEngineInstance.stopScreenShare();
+  } else {
+    if (window.voiceEngineInstance.videoTrack) {
+      window.voiceEngineInstance.stopCamera();
+    }
+    await window.voiceEngineInstance.startScreenShare();
+  }
+
+  updateLiveAiVideoState();
+}
+
+function closeVoiceVideoPreview() {
+  const preview = $('#camera-feed-box');
+  const video = $('#camera-video-element');
+  if (preview) {
+    preview.classList.remove('is-expanded');
+    preview.hidden = true;
+  }
+  if (video) video.srcObject = null;
+
+  if (window.voiceEngineInstance) {
+    window.voiceEngineInstance.stopCamera();
+    window.voiceEngineInstance.stopScreenShare();
+  }
+}
+
+function toggleVoiceVideoExpand() {
+  const preview = $('#camera-feed-box');
+  if (!preview) return;
+  
+  const isExpanded = preview.classList.toggle('is-expanded');
+  
+  if (isExpanded) {
+    preview.style.position = 'fixed';
+    preview.style.width = '480px';
+    preview.style.height = '320px';
+    preview.style.left = `${Math.max(20, (window.innerWidth - 480) / 2)}px`;
+    preview.style.top = `${Math.max(20, (window.innerHeight - 320) / 2)}px`;
+    preview.style.right = 'auto';
+    preview.style.bottom = 'auto';
+    toast('Popped out — drag header to move');
+  } else {
+    preview.style.position = '';
+    preview.style.width = '';
+    preview.style.height = '';
+    preview.style.left = '';
+    preview.style.top = '';
+    preview.style.right = '';
+    preview.style.bottom = '';
+    toast('Docked back in Stage area');
+  }
+}
+
 // Universal file:// safe Web Search Helper
 async function executeWebSearch(query) {
   console.log('[Berto Agent] Executing Web Search for:', query);
@@ -1322,9 +1922,9 @@ function startCanvasVisualizer() {
   }
   
   function animate() {
-    const level = voiceEngineInstance ? voiceEngineInstance.volumeLevel : 0;
-    const isListening = voiceEngineInstance ? voiceEngineInstance.isListening : false;
-    const isSpeaking = voiceEngineInstance ? voiceEngineInstance.isSpeaking : false;
+    const level = window.voiceEngineInstance ? window.voiceEngineInstance.volumeLevel : 0;
+    const isListening = window.voiceEngineInstance ? window.voiceEngineInstance.isListening : false;
+    const isSpeaking = window.voiceEngineInstance ? window.voiceEngineInstance.isSpeaking : false;
     
     renderCanvasAudioWave(canvas, level, isListening, isSpeaking);
     visualizerAnimationId = requestAnimationFrame(animate);

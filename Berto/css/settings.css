@@ -1,0 +1,365 @@
+/* =========================================================
+   Berto Settings Layout, Controls, Switches & Sliders
+   ========================================================= */
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+/* Sidebar Navigation */
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: sticky;
+  top: 90px;
+  padding: 8px;
+  background: rgba(16, 20, 18, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.settings-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-align: left;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s var(--ease);
+  width: 100%;
+}
+
+.settings-nav button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.settings-nav button.active {
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(130, 243, 208, 0.25);
+}
+
+.settings-nav button .nav-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+.settings-nav button.active .nav-icon {
+  opacity: 1;
+  color: var(--accent);
+}
+
+/* Main Settings Card Container */
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-section {
+  padding: 28px;
+  background: rgba(16, 20, 18, 0.75);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.25s var(--ease);
+}
+
+.settings-section:hover {
+  border-color: var(--border-strong);
+}
+
+.settings-section h3 {
+  font: 600 20px/1.2 var(--display);
+  letter-spacing: -0.03em;
+  margin: 0 0 6px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-copy {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Individual Setting Row */
+.setting-row {
+  min-height: 68px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.setting-row:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.setting-row:last-of-type {
+  padding-bottom: 0;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 60%;
+}
+
+.setting-row strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.setting-row span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Inputs & Custom Controls */
+.setting-row select,
+.setting-row input[type="text"],
+.setting-row input[type="password"] {
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 9px 13px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: all 0.2s var(--ease);
+}
+
+.setting-row select:focus,
+.setting-row input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(130, 243, 208, 0.12);
+}
+
+/* Segmented Control Buttons */
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  background: rgba(10, 14, 12, 0.6);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.segmented button {
+  padding: 6px 12px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s var(--ease);
+}
+
+.segmented button:hover {
+  color: var(--text);
+}
+
+.segmented button.active {
+  background: var(--surface-3);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Switch Styling */
+.switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch span {
+  position: absolute;
+  inset: 0;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.25s var(--ease);
+}
+
+.switch span:before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.25s var(--ease), background-color 0.25s var(--ease);
+}
+
+.switch input:checked + span {
+  background: var(--accent-wash);
+  border-color: var(--accent-strong);
+}
+
+.switch input:checked + span:before {
+  transform: translateX(20px);
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(130, 243, 208, 0.6);
+}
+
+/* Footer Action Bar */
+.setting-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ====================================
+   Custom Range Sliders for Settings
+   ==================================== */
+
+/* Slider Container / Control Box */
+.slider-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 32px;
+  text-align: right;
+  font-family: ui-monospace, monospace;
+}
+
+/* Base Track Styling */
+.setting-row input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 180px;
+  height: 6px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.setting-row input[type="range"]:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(130, 243, 208, 0.12);
+}
+
+/* --- WebKit (Chrome, Safari, Edge) Thumb --- */
+.setting-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(130, 243, 208, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), background 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.setting-row input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: #a2f7db;
+  box-shadow: 0 0 16px rgba(130, 243, 208, 0.6);
+}
+
+.setting-row input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(0.92);
+}
+
+/* --- Firefox Track & Thumb --- */
+.setting-row input[type="range"]::-moz-range-track {
+  height: 6px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+}
+
+.setting-row input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(130, 243, 208, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), background 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.setting-row input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  background: #a2f7db;
+  box-shadow: 0 0 16px rgba(130, 243, 208, 0.6);
+}
+
+/* API Key Input */
+.api-key-input {
+  width: min(300px, 100%);
+}
+
+/* =========================================================
+   Responsive Settings
+   ========================================================= */
+
+@media (max-width: 800px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+  .settings-nav {
+    flex-direction: row;
+    overflow: auto;
+  }
+  .settings-nav button {
+    white-space: nowrap;
+  }
+  .setting-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .setting-row > div {
+    width: 100%;
+  }
+}

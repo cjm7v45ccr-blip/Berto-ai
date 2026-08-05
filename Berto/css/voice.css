@@ -1,0 +1,1269 @@
+/* =========================================================
+   Berto Voice Stage, Bento Metrics & Video Feeds
+   ========================================================= */
+
+/* Voice Mode */
+.voice-shell {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 68px);
+}
+
+.voice-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  gap: 28px;
+}
+
+.voice-header h2 {
+  font: 600 clamp(32px, 4vw, 48px)/1.03 var(--display);
+  letter-spacing: -.06em;
+  margin: 0 0 8px;
+}
+
+.voice-header p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+  max-width: 440px;
+}
+
+.voice-visualizer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 32px 0;
+}
+
+.voice-indicator {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all .3s var(--ease);
+}
+
+.voice-indicator.is-idle {
+  background: rgba(130, 243, 208, .06);
+  border: 2px solid var(--border);
+  box-shadow: 0 0 30px rgba(130, 243, 208, .03);
+}
+
+.voice-indicator.is-listening {
+  background: rgba(130, 243, 208, .10);
+  border: 2px solid var(--accent-strong);
+  box-shadow: 0 0 40px rgba(130, 243, 208, .12);
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.voice-indicator.is-speaking {
+  background: rgba(130, 243, 208, .15);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 50px rgba(130, 243, 208, .2);
+}
+
+.voice-indicator.is-processing {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+/* Center the voice level wave pill neatly at the bottom of the stage */
+.voice-wave {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 32px;
+  padding: 6px 16px;
+  background: rgba(16, 20, 18, 0.65);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  z-index: 10;
+}
+
+.voice-wave span {
+  width: 3px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: height 0.12s var(--ease), background 0.3s var(--ease);
+}
+
+.voice-indicator.is-listening .voice-wave span {
+  animation: waveBounce 1.2s ease-in-out infinite;
+}
+
+.voice-indicator.is-listening .voice-wave span:nth-child(1) { animation-delay: 0s; }
+.voice-indicator.is-listening .voice-wave span:nth-child(2) { animation-delay: .1s; }
+.voice-indicator.is-listening .voice-wave span:nth-child(3) { animation-delay: .2s; }
+.voice-indicator.is-listening .voice-wave span:nth-child(4) { animation-delay: .3s; }
+.voice-indicator.is-listening .voice-wave span:nth-child(5) { animation-delay: .4s; }
+.voice-indicator.is-listening .voice-wave span:nth-child(6) { animation-delay: .5s; }
+.voice-indicator.is-listening .voice-wave span:nth-child(7) { animation-delay: .6s; }
+.voice-indicator.is-listening .voice-wave span:nth-child(8) { animation-delay: .7s; }
+.voice-indicator.is-listening .voice-wave span:nth-child(9) { animation-delay: .8s; }
+.voice-indicator.is-listening .voice-wave span:nth-child(10) { animation-delay: .9s; }
+
+.voice-indicator.is-speaking .voice-wave span {
+  animation: speakPulse .6s ease-in-out infinite;
+}
+
+.voice-indicator.is-speaking .voice-wave span:nth-child(1) { animation-delay: 0s; }
+.voice-indicator.is-speaking .voice-wave span:nth-child(2) { animation-delay: .05s; }
+.voice-indicator.is-speaking .voice-wave span:nth-child(3) { animation-delay: .1s; }
+.voice-indicator.is-speaking .voice-wave span:nth-child(4) { animation-delay: .15s; }
+.voice-indicator.is-speaking .voice-wave span:nth-child(5) { animation-delay: .2s; }
+.voice-indicator.is-speaking .voice-wave span:nth-child(6) { animation-delay: .25s; }
+.voice-indicator.is-speaking .voice-wave span:nth-child(7) { animation-delay: .3s; }
+.voice-indicator.is-speaking .voice-wave span:nth-child(8) { animation-delay: .35s; }
+.voice-indicator.is-speaking .voice-wave span:nth-child(9) { animation-delay: .4s; }
+.voice-indicator.is-speaking .voice-wave span:nth-child(10) { animation-delay: .45s; }
+
+.voice-indicator.is-processing .voice-wave span {
+  background: rgba(180, 160, 240, .6);
+  animation: processingPulse 1.5s ease-in-out infinite;
+}
+
+.voice-indicator.is-processing .voice-wave span:nth-child(1) { animation-delay: 0s; }
+.voice-indicator.is-processing .voice-wave span:nth-child(2) { animation-delay: .15s; }
+.voice-indicator.is-processing .voice-wave span:nth-child(3) { animation-delay: .3s; }
+.voice-indicator.is-processing .voice-wave span:nth-child(4) { animation-delay: .45s; }
+.voice-indicator.is-processing .voice-wave span:nth-child(5) { animation-delay: .6s; }
+.voice-indicator.is-processing .voice-wave span:nth-child(6) { animation-delay: .75s; }
+.voice-indicator.is-processing .voice-wave span:nth-child(7) { animation-delay: .9s; }
+.voice-indicator.is-processing .voice-wave span:nth-child(8) { animation-delay: 1.05s; }
+.voice-indicator.is-processing .voice-wave span:nth-child(9) { animation-delay: 1.2s; }
+.voice-indicator.is-processing .voice-wave span:nth-child(10) { animation-delay: 1.35s; }
+
+.voice-status {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 500;
+  min-height: 21px;
+  transition: color .3s var(--ease);
+}
+
+.voice-status.is-active {
+  color: var(--accent);
+}
+
+.voice-status.is-processing {
+  color: rgba(180, 160, 240, .8);
+}
+
+.voice-transcript {
+  display: none !important;
+}
+
+.voice-response {
+  display: none !important;
+}
+
+.voice-controls {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.voice-button {
+  height: 52px;
+  padding: 0 28px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all .25s var(--ease);
+  border: 1px solid var(--border-strong);
+  background: var(--accent);
+  color: #08271f;
+}
+
+.voice-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(130, 243, 208, .2);
+}
+
+.voice-button.is-active {
+  background: #e06060;
+  color: #fff;
+  border-color: #e06060;
+}
+
+.voice-button.is-active:hover {
+  box-shadow: 0 8px 25px rgba(224, 96, 96, .25);
+}
+
+.voice-button.secondary {
+  background: var(--surface-3);
+  color: var(--muted);
+  border-color: var(--border);
+}
+
+.voice-button.secondary:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.voice-button-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.voice-conversation {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.voice-conversation-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  animation: rise .3s var(--ease);
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.voice-conversation-item .conv-role {
+  flex-shrink: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-weight: 600;
+  margin-top: 1px;
+}
+
+.voice-conversation-item.user .conv-role {
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.voice-conversation-item.assistant .conv-role {
+  color: rgba(180, 160, 240, .9);
+  background: rgba(180, 160, 240, .10);
+}
+
+.voice-conversation-item .conv-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.voice-conversation-item.context-briefing {
+  background: rgba(130, 243, 208, 0.12);
+  border: 1px solid var(--accent-strong);
+  border-left: 3px solid var(--accent);
+  box-shadow: 0 0 20px rgba(130, 243, 208, 0.08);
+}
+
+.voice-conversation-item.context-briefing .conv-role {
+  color: var(--accent-strong);
+  background: rgba(130, 243, 208, 0.15);
+  font-weight: 700;
+}
+
+.voice-conversation-item.context-briefing .conv-text em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+/* Voice Selector (Right Glass Pill) */
+.voice-voice-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(20, 26, 23, 0.75);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 4px 12px 4px 14px;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s var(--ease);
+}
+
+.voice-voice-selector label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.voice-voice-selector select {
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  min-width: 200px;
+  outline: none;
+  transition: border-color .2s var(--ease);
+}
+
+.voice-voice-selector select:hover,
+.voice-voice-selector select:focus {
+  border-color: var(--accent-strong);
+}
+
+/* Model Badge (Left Glass Pill) */
+.voice-model-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(130, 243, 208, 0.08);
+  border: 1px solid rgba(130, 243, 208, 0.22);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.voice-model-badge .status-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.voice-model-label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.voice-controls .voice-tool-btn {
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+/* Make camera and screen buttons match reset button style */
+.voice-controls .voice-tool-btn {
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--surface-3);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  transition: all .25s var(--ease);
+  cursor: pointer;
+}
+
+.voice-controls .voice-tool-btn:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+/* =========================================================
+   FaceTime / Zoom Meeting Interface for Voice Mode
+   ========================================================= */
+
+/* --- RIGHT PANE: Stage Pane & Layout --- */
+.voice-stage-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Stage Box: Flexes to fit middle space so buttons stay visible at bottom */
+.voice-stage-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: rgba(10, 14, 12, 0.95);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  position: relative;
+}
+
+/* RIGHT STAGE: Always 100% Full Height (Never splits, no horizontal line) */
+.voice-visualizer-center {
+  flex: 1 1 100% !important;
+  height: 100% !important;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: none !important;
+}
+
+/* Disable old preview dock styles on right stage */
+.voice-stage-container:has(#voice-video-preview:not([hidden]):not(.is-expanded)) .voice-visualizer-center {
+  flex: 1 1 100% !important;
+  border-bottom: none !important;
+}
+
+.voice-video-preview:not(.is-expanded) {
+  display: none !important;
+}
+
+/* Live Text Input Bar */
+.live-text-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 600px;
+  width: 90%;
+  margin: 20px auto 0 auto;
+  background: rgba(21, 30, 26, 0.85);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(130, 243, 208, 0.25);
+  border-radius: 28px;
+  padding: 6px 8px 6px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.live-text-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 14px;
+}
+
+.live-text-input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.live-text-send-btn {
+  background: var(--accent, #82f3d0);
+  color: #08271f;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.live-text-send-btn:hover {
+  transform: scale(1.06);
+  background: #a2f7dc;
+}
+
+/* Floating Live Summary Pop-Up Panel */
+.live-summary-popup {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 340px;
+  max-height: 420px;
+  background: rgba(14, 20, 17, 0.92);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(130, 243, 208, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: popupSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.summary-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.popup-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #82f3d0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.summary-popup-body {
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e2e8f0;
+  overflow-y: auto;
+}
+
+/* --- Bottom Meeting Actions Bar --- */
+.voice-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(16, 20, 18, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 20px;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  flex-shrink: 0;
+}
+
+.voice-shell.meeting-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+  height: calc(100vh - 88px);
+  padding: 16px 24px 24px;
+}
+
+/* --- Left Side: Chat & Transcript Pane (Live AI Session) --- */
+.voice-chat-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 18px;
+  gap: 0px;
+  background: rgba(16, 20, 18, 0.75);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  transition: gap 0.4s cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+
+/* 1. DEFAULT STATE: Top Half takes 100% Height */
+.voice-chat-top-half {
+  flex: 1 1 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  transition: flex 0.4s cubic-bezier(0.22, 0.8, 0.2, 1), 
+              height 0.4s cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+
+.voice-chat-top-half .voice-conversation {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* 2. DEFAULT STATE: Bottom Half is Collapsed & Hidden */
+.voice-chat-bottom-half {
+  flex: 0 0 0%;
+  height: 0px;
+  opacity: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  background: rgba(10, 14, 12, 0.95);
+  border: 0px solid transparent;
+  border-radius: 14px;
+  padding: 0px;
+  overflow: hidden;
+  pointer-events: none;
+  transition: flex 0.4s cubic-bezier(0.22, 0.8, 0.2, 1), 
+              height 0.4s cubic-bezier(0.22, 0.8, 0.2, 1), 
+              opacity 0.3s ease, 
+              padding 0.4s ease,
+              border-color 0.4s ease;
+}
+
+/* 3. ACTIVE STATE: Smooth 50/50 Horizontal Cut Animation */
+.voice-chat-pane.has-video {
+  gap: 12px;
+}
+
+.voice-chat-pane.has-video .voice-chat-top-half {
+  flex: 0 0 calc(50% - 6px);
+  height: calc(50% - 6px);
+}
+
+.voice-chat-pane.has-video .voice-chat-bottom-half {
+  flex: 0 0 calc(50% - 6px);
+  height: calc(50% - 6px);
+  opacity: 1;
+  padding: 8px;
+  border: 1px solid var(--border-strong);
+  pointer-events: auto;
+}
+
+/* Video Feed Boxes & Labels (inside left pane bottom half) */
+.voice-chat-bottom-half .video-feed-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.voice-chat-bottom-half .video-feed-box[hidden] {
+  display: none !important;
+}
+
+.voice-chat-bottom-half .video-feed-box video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.voice-chat-bottom-half .video-feed-label {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.75);
+  color: var(--accent);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  z-index: 2;
+}
+
+.voice-pane-header h3 {
+  font: 600 20px var(--display);
+  letter-spacing: -0.02em;
+  margin: 4px 0 14px;
+  color: var(--text);
+}
+
+.voice-transcript-box {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* --- Live Session Dashboard Card --- */
+.voice-dashboard-card {
+  background: rgba(22, 28, 25, 0.65);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.dash-main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.session-timer {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-wash);
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(130, 243, 208, 0.2);
+}
+
+.dash-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-3);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  transition: all 0.25s var(--ease);
+}
+
+.dash-pill.is-active {
+  color: var(--accent);
+  background: var(--accent-wash);
+  border-color: rgba(130, 243, 208, 0.3);
+}
+
+.voice-conv-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+/* Ensure history list fills remaining height cleanly */
+.voice-conversation {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 4px 2px 2px;
+}
+
+.voice-video-preview:not(.is-expanded) .voice-video-header {
+  cursor: default;
+  background: rgba(18, 24, 21, 0.9);
+  padding: 6px 12px;
+}
+
+.voice-video-preview:not(.is-expanded) .voice-video-container {
+  flex: 1;
+  width: 100%;
+  height: calc(100% - 38px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #050706;
+}
+
+.voice-video-preview:not(.is-expanded) video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* --- EXPANDED STATE: Floats ABOVE EVERYTHING in Berto & is RESIZABLE --- */
+.voice-video-preview.is-expanded {
+  position: fixed !important;
+  z-index: 999999 !important;
+  width: 480px;
+  height: 320px;
+  min-width: 260px;
+  min-height: 180px;
+  max-width: 95vw;
+  max-height: 95vh;
+  resize: both;
+  overflow: hidden;
+  background: rgba(14, 18, 16, 0.96);
+  border: 1px solid rgba(130, 243, 208, 0.4);
+  border-radius: 16px;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.85), 0 0 60px rgba(130, 243, 208, 0.25);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  display: flex;
+  flex-direction: column;
+}
+
+.voice-video-preview.is-expanded .voice-video-header {
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.voice-video-preview.is-expanded .voice-video-header:active {
+  cursor: grabbing;
+}
+
+.voice-video-preview.is-expanded .voice-video-container {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.voice-video-preview.is-expanded video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Styled bottom-right corner resize handle */
+.voice-video-preview.is-expanded::-webkit-resizer {
+  background-color: var(--surface-3);
+  border-top: 2px solid var(--accent);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px 0 0 0;
+}
+
+/* --- Bottom Meeting Actions Bar --- */
+.voice-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(16, 20, 18, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 20px;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+/* =========================================================
+   Voice Stage Header Redesign (Sleek Glass Pills)
+   ========================================================= */
+
+.voice-stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 2px 4px;
+  width: 100%;
+}
+
+.voice-voice-selector:hover {
+  border-color: rgba(130, 243, 208, 0.35);
+  background: rgba(28, 36, 31, 0.9);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.voice-voice-selector label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.voice-voice-selector select {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 4px 22px 4px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+
+  /* Crisp Mint Chevron Arrow */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2382f3d0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right center;
+}
+
+.voice-voice-selector select option {
+  background: #101412;
+  color: var(--text);
+  padding: 10px;
+}
+
+/* Glassmorphism Glowing Voice Orb Canvas */
+#voice-canvas-visualizer {
+  display: block;
+  margin: auto !important;
+  width: 260px !important;
+  height: 260px !important;
+  max-width: 80vw;
+  max-height: 80vw;
+  border-radius: 50%;
+  
+  /* Modern Radial Ambient Glow */
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(10, 20, 16, 0.5) 75%);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 60px rgba(16, 185, 129, 0.15), inset 0 0 35px rgba(16, 185, 129, 0.08);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transition: border-color 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
+}
+
+/* Active Audio States */
+#voice-canvas-visualizer.is-listening {
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 80px rgba(16, 185, 129, 0.3), inset 0 0 45px rgba(16, 185, 129, 0.2);
+}
+
+#voice-canvas-visualizer.is-speaking {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 80px rgba(59, 130, 246, 0.3), inset 0 0 45px rgba(59, 130, 246, 0.2);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(10, 16, 26, 0.5) 75%);
+}
+
+#voice-canvas-visualizer.is-processing {
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 80px rgba(245, 158, 11, 0.3), inset 0 0 45px rgba(245, 158, 11, 0.2);
+}
+
+/* =========================================================
+   BENTO GRID LIVE METRICS DASHBOARD
+   ========================================================= */
+
+.bento-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.bento-card {
+  background: rgba(22, 28, 25, 0.65);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  transition: all 0.25s var(--ease);
+}
+
+.bento-card:hover {
+  border-color: rgba(130, 243, 208, 0.3);
+  background: rgba(26, 34, 30, 0.8);
+  transform: translateY(-1px);
+}
+
+.bento-card.bento-span-2 {
+  grid-column: span 2;
+}
+
+.bento-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.bento-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+}
+
+.bento-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+}
+
+.bento-body {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bento-metric-val {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.bento-metric-val small {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.bento-subtext {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* Volume Meter Bar */
+.bento-meter {
+  width: 100%;
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.bento-meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #34b08d);
+  border-radius: 99px;
+  transition: width 0.1s linear;
+}
+
+/* Light Theme Overrides */
+html[data-theme="light"] .bento-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--border-strong);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+html[data-theme="light"] .bento-meter {
+  background: var(--surface-2);
+}
+
+/* =========================================================
+   Voice Light Theme Overrides
+   ========================================================= */
+
+html[data-theme="light"] .voice-stage-container {
+  background: rgba(235, 242, 238, 0.95);
+  border-color: var(--border-strong);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.03);
+}
+
+html[data-theme="light"] .voice-controls-bar {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme="light"] .voice-conversation-item {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+html[data-theme="light"] .voice-conversation-item .conv-text {
+  color: var(--text);
+}
+
+html[data-theme="light"] .voice-voice-selector label {
+  color: var(--muted);
+}
+
+html[data-theme="light"] .voice-voice-selector select {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+html[data-theme="light"] .voice-model-badge {
+  background: var(--accent-wash);
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+
+html[data-theme="light"] .voice-indicator.is-idle {
+  background: rgba(5, 143, 115, 0.06);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 30px rgba(5, 143, 115, 0.05);
+}
+
+html[data-theme="light"] .voice-indicator.is-listening {
+  background: rgba(5, 143, 115, 0.12);
+  border-color: var(--accent);
+  box-shadow: 0 0 40px rgba(5, 143, 115, 0.15);
+}
+
+html[data-theme="light"] .voice-video-preview:not(.is-expanded) .voice-video-header {
+  background: rgba(225, 235, 230, 0.95);
+  color: var(--text);
+}
+
+html[data-theme="light"] .voice-video-preview:not(.is-expanded) .voice-video-container {
+  background: #090e0b;
+}
+
+html[data-theme="light"] .voice-video-btn {
+  color: var(--muted);
+}
+
+html[data-theme="light"] .voice-video-btn:hover {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* =========================================================
+   Voice Responsive
+   ========================================================= */
+
+@media (max-width: 850px) {
+  .voice-shell.meeting-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .voice-stage-container {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 600px) {
+  .voice-shell {
+    padding: 24px 16px 60px;
+  }
+  .voice-indicator {
+    width: 100px;
+    height: 100px;
+  }
+  .voice-button {
+    height: 46px;
+    padding: 0 20px;
+    font-size: 13px;
+  }
+  .voice-header h2 {
+    font-size: 30px;
+  }
+  .voice-voice-selector {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .voice-voice-selector select {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   Voice Transcript & Conversation Fixes
+   ========================================================= */
+
+.voice-conversation {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  flex: 1;
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.voice-conversation-item.context-briefing {
+  display: flex;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(130, 243, 208, 0.06);
+  border: 1px solid rgba(130, 243, 208, 0.22);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.voice-conversation-item.context-briefing .conv-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(130, 243, 208, 0.12);
+  padding: 4px 10px;
+  border-radius: 6px;
+  width: auto;
+}
+
+.voice-conversation-item.context-briefing .conv-text {
+  width: 100%;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.voice-conversation-item.context-briefing .conv-text em {
+  font-style: normal;
+  color: var(--text);
+}
+
+/* Ensure camera & screen share icons match the reset button's icon */
+.voice-tool-btn .voice-button-icon,
+.voice-tool-btn svg,
+#voice-camera-btn svg,
+#voice-screen-btn svg {
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  fill: currentColor;
+  stroke: currentColor;
+  color: var(--muted);
+  transition: color 0.25s var(--ease);
+}
+
+.voice-tool-btn:hover .voice-button-icon,
+.voice-tool-btn:hover svg,
+#voice-camera-btn:hover svg,
+#voice-screen-btn:hover svg {
+  color: var(--text);
+}
+
+/* Voice Mode Transcript Styles */
+.voice-transcript .final {
+  color: var(--text);
+  font-weight: 500;
+}
