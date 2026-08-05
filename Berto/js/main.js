@@ -2,6 +2,11 @@
 
 // 0. Instance Identifier Prefix
 const INSTANCE_PREFIX = 'berto'; // Change this anytime to create a clean, isolated workspace
+const dbStorage = {
+  async get() { return null; },
+  async set() { return false; },
+  async remove() { return false; }
+};
 // Path to your custom logo image
 const LOGO_HTML = `<img src="./assets/logo.png" class="inline-logo" alt="Berto">`;
 
@@ -5164,25 +5169,26 @@ function initSetup() {
     apiKeyInput?.addEventListener('input', updateSubmitState);
 
     // Submit handler
-    submitBtn?.onclick = () => {
-      const name = (nameInput?.value || '').trim();
-      const key = (apiKeyInput?.value || '').trim();
+    if (submitBtn) {
+  submitBtn.onclick = () => {
+    const name = (nameInput?.value || '').trim();
+    const key = (apiKeyInput?.value || '').trim();
 
-      if (name) savePreferences({ userName: name });
-      if (key) {
-        writeStorage(CONFIG.storage.apiKey, key);
-        toast('API key saved locally');
-      }
+    if (name) savePreferences({ userName: name });
+    if (key) {
+      writeStorage(CONFIG.storage.apiKey, key);
+      toast('API key saved locally');
+    }
 
-      writeStorage(`${INSTANCE_PREFIX}-setup-complete`, 'true');
-      overlay.hidden = true;
-      toast(`Welcome, ${name || 'friend'}!`);
-      
-      // Trigger restriction check once key is saved
-      if (typeof detectManagedAccountRestrictions === 'function') {
-        detectManagedAccountRestrictions();
-      }
-    };
+    writeStorage(`${INSTANCE_PREFIX}-setup-complete`, 'true');
+    overlay.hidden = true;
+    toast(`Welcome, ${name || 'friend'}!`);
+    
+    if (typeof detectManagedAccountRestrictions === 'function') {
+      detectManagedAccountRestrictions();
+    }
+  };
+}
 
     // Skip handler
     const skipBtn = $('#setup-skip');
