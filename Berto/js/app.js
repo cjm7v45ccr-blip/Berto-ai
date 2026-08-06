@@ -1,6 +1,36 @@
 // Berto App Initialization, Event Delegation & Slash Commands
 
 // =========================================================
+// Global Preference Manager (Fixes Theme, Density & Motion)
+// =========================================================
+window.savePreferences = function(patch) {
+  // 1. Update the global application store
+  if (typeof store !== 'undefined' && store.update) {
+    store.update(patch);
+  }
+  
+  // 2. Immediately apply visual changes to the DOM
+  if (patch.theme) {
+    document.documentElement.setAttribute('data-theme', patch.theme);
+  }
+  if (patch.density) {
+    document.documentElement.setAttribute('data-density', patch.density);
+  }
+  if (patch.motion !== undefined) {
+    document.documentElement.setAttribute('data-motion', patch.motion ? 'full' : 'off');
+  }
+  
+  // 3. Persist to localStorage
+  try {
+    const prefsKey = `${typeof INSTANCE_PREFIX !== 'undefined' ? INSTANCE_PREFIX : 'berto'}-preferences-v2`;
+    const currentPrefs = JSON.parse(localStorage.getItem(prefsKey) || '{}');
+    localStorage.setItem(prefsKey, JSON.stringify({ ...currentPrefs, ...patch }));
+  } catch (e) {
+    console.warn('Could not save preferences to localStorage', e);
+  }
+};
+
+// =========================================================
 // MODAL ACCESSIBILITY FOCUS TRAP
 // =========================================================
 function trapModalFocus(modalEl) {
@@ -576,30 +606,30 @@ Your personality is Loyal, Professional, Friendly, Confident, Expressive, Highly
   const totalImagesSize = imageAttachments.reduce((sum, a) => sum + (a.bytes || a.size || 0), 0);
 
   let fullPrompt = text;
-  if (textAttachments.length > 0) {
-    const processedAttachments = textAttachments.map(a => {
-      const content = a.content || '';
-      if (content && wordCount(content) > 1000 && text) {
-        const words = content.trim().split(/\s+/).slice(0, 500).join(' ');
-        return `[Attached File: ${a.name}]\n${words}...`;
-      }
-      return `[Attached File: ${a.name}]\n${content}`;
-    });
-    const attachTexts = processedAttachments.join('\n\n');
-    fullPrompt = text ? `${attachTexts}\n\n${text}` : attachTexts;
-  }
+ if (textAttachments.length > 0) {
+  const processedAttachments = textAttachments.map(a => {
+    const content = a.content || '';
+    const maxChars = 3800000; // ~25,000 words (Gemini can handle this easily)
+    const trimmedContent = content.length > maxChars 
+      ? content.slice(0, maxChars) + '\n\n[... PDF content truncated for length ...]'
+      : content;
+
+    return `[Attached File: ${a.name}]\n${trimmedContent}`;
+  });
+  const attachTexts = processedAttachments.join('\n\n');
+  fullPrompt = text ? `${attachTexts}\n\n${text}` : attachTexts;
+}
 
   if (!fullPrompt.trim() && imageAttachments.length === 0) return;
   if (fullPrompt.length > CONFIG.maxMessageChars * 2 && currentAttachments.length === 0) {
     return toast(`Message content is too long. Limit is ${formatCount(CONFIG.maxMessageChars)} characters.`, 'error');
   }
-  if (fullPrompt.length > 50000) {
-    return toast(`Context is too large to process. Please reduce file size or text length.`, 'error');
+  if (fullPrompt.length > 4000000) {
+  return toast('Context exceeds 2 million characters limit.', 'error');
   }
   if (totalImagesSize > CONFIG.maxContextBytes) {
-    return toast(`Image context is too large. Please reduce image sizes.`, 'error');
-  }
-
+  return toast('Attachments exceed 100 MB inline payload limit.', 'error');
+}
   const preparedImages = [];
   for (const att of imageAttachments) {
     try {
@@ -669,16 +699,63 @@ REAL-TIME WORKSPACE PERCEPTION CONTEXT
 ${getUiStateContext()}
 `;
 
+  // 🕒 DYNAMIC REAL-TIME CLOCK INJECTION
+  const now = new Date();
+  const currentDateTimeStr = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const clockContext = `
+━━━━━━━━━━━━━━━━━━
+CURRENT REAL-TIME DATE & TIME
+━━━━━━━━━━━━━━━━━━
+Today's exact date and time is: ${currentDateTimeStr}.
+Always ground your answers relative to this current date.
+`;
+
+  // Long-Term Persistent Memory Context (IndexedDB/Serverless)
+  const memoryContext = (typeof window.bertoMemory !== 'undefined') ? window.bertoMemory.getSystemPromptContext() : '';
+
+  // Client-Side Semantic RAG: Retrieve relevant excerpts from large stored documents
+  let ragContext = '';
+  try {
+    if (typeof window.DocumentRAGEngine !== 'undefined') {
+      const ragFile = store.state.files.find(f => !f.isImage && (f.content || '').length > 2000);
+      if (ragFile && ragFile.content) {
+        const relevant = window.DocumentRAGEngine.getRelevantContext(text || '', ragFile.content, 3);
+        if (relevant) {
+          ragContext = `
+━━━━━━━━━━━━━━━━━━
+RELEVANT DOCUMENT EXCERPTS (CLIENT-SIDE SEMANTIC SEARCH)
+━━━━━━━━━━━━━━━━━━
+${relevant}
+`;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[Berto] RAG context error:', e);
+  }
+
   const streamer = new SmoothStreamer(node);
 
   activeRequest = api.request({
     prompt: fullPrompt,
     system: `${personaSystemInstruction}
 ${perceptionContext}
+${clockContext}
+${memoryContext}
+${ragContext}
 ${BERTO_CODE_POLICY}
 ${GRAPH_INSTRUCTION}
 ${LATEX_RULES}
 ${CHECKLIST_RULE}
+${BERTO_DOCUMENT_POLICY}
 
 You have direct programmatic control over this web application interface.
 
@@ -708,7 +785,9 @@ AVAILABLE UI ACTIONS:
 - "use_writing_studio": { "action": "use_writing_studio", "format": "Essay"|"Email"|"Blog"|"Report"|"Resume"|"Cover Letter", "prompt": "topic text" }
 - "set_name": { "action": "set_name", "value": "New Name" }
 - "set_theme": { "action": "set_theme", "value": "dark"|"light" }
-- "snap_photo": { "action": "snap_photo", "countdown": 2, "prompt": "<user question or prompt if provided>", "autoCapture": true }`,
+- "snap_photo": { "action": "snap_photo", "countdown": 2, "prompt": "<user question or prompt if provided>", "autoCapture": true }
+- "save_memory": { "action": "save_memory", "value": "<the core fact or preference to remember permanently>" }
+- "delete_memory": { "action": "delete_memory", "value": "<keyword or phrase to forget>" }`,
     history: historyMessages,
     preferred: store.state.model,
     temperature: store.state.temperature,
@@ -779,6 +858,9 @@ function openArtifact(htmlCode, title = 'Live Preview') {
 
     const isFullDoc = htmlCode.trim().toLowerCase().startsWith('<!doctype') || htmlCode.trim().toLowerCase().startsWith('<html');
 
+    // Detect React / JSX artifacts to enable live Babel rendering
+    const isReact = htmlCode.includes('ReactDOM') || htmlCode.includes('React.') || htmlCode.includes('import React') || htmlCode.includes('createRoot') || htmlCode.includes('useState') || htmlCode.includes('useEffect');
+
     const guardScript = `
     <script>
       (function() {
@@ -807,11 +889,21 @@ function openArtifact(htmlCode, title = 'Live Preview') {
       })();
     </script>`;
 
+    const reactScripts = isReact ? `
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>` : '';
+
     let fullDoc = '';
     if (isFullDoc) {
+      const reactHead = isReact
+        ? `<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>`
+        : '';
       fullDoc = htmlCode.includes('<head>') 
-        ? htmlCode.replace('<head>', '<head>' + guardScript)
-        : guardScript + htmlCode;
+        ? htmlCode.replace('<head>', '<head>' + guardScript + reactHead)
+        : guardScript + reactHead + htmlCode;
     } else {
       fullDoc = `<!DOCTYPE html>
 <html>
@@ -821,13 +913,18 @@ function openArtifact(htmlCode, title = 'Live Preview') {
   <title>${escapeHtml(title)}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  ${reactScripts}
   ${guardScript}
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; background: #0f172a; color: #f8fafc; margin: 0; min-height: 100vh; box-sizing: border-box; }
   </style>
 </head>
 <body>
-  ${htmlCode}
+  <div id="root"></div>
+  ${isReact ? `<script type="text/babel">${htmlCode}</script>` : htmlCode}
+  <script>
+    if (window.lucide) lucide.createIcons();
+  </script>
 </body>
 </html>`;
     }
@@ -867,7 +964,7 @@ function closeArtifact() {
 // =========================================================
 // Action Handler
 // =========================================================
-function handleAction(action, element) {
+async function handleAction(action, element) {
   if (action === 'toggle-mobile') {
     $('#sidebar')?.classList.add('open');
     $('.drawer-scrim')?.classList.add('open');
@@ -958,22 +1055,35 @@ function handleAction(action, element) {
       toast('File removed');
     }
   } else if (action === 'attach-file-to-chat') {
-    const fileName = element?.dataset?.fileName;
-    const fileRecord = store.state.files.find(f => f.name === fileName);
-    if (fileRecord) {
-      currentAttachments.push({ 
-        name: fileRecord.name, 
-        content: fileRecord.content || `[File Content: ${fileRecord.name}]`,
-        isImage: fileRecord.isImage,
-        type: fileRecord.type,
-        mimeType: fileRecord.mimeType || fileRecord.type,
-        bytes: fileRecord.bytes
-      });
-      updateAttachmentLabel();
-      route('chat');
-      toast(`Attached ${fileName} to prompt`);
+  const fileName = element?.dataset?.fileName;
+  const fileRecord = store.state.files.find(f => f.name === fileName);
+  if (fileRecord) {
+    let fullContent = fileRecord.content || '';
+
+    // If PDF text was saved to IndexedDB, retrieve the full text
+    if (!fullContent && typeof dbStorage !== 'undefined') {
+      try {
+        const dbData = await dbStorage.get('files', fileName);
+        if (dbData && dbData.content) fullContent = dbData.content;
+      } catch (e) {
+        console.warn('Could not read PDF from IndexedDB:', e);
+      }
     }
-  } else if (action === 'export') {
+
+    currentAttachments.push({ 
+      name: fileRecord.name, 
+      content: fullContent || `[File Content: ${fileRecord.name}]`,
+      isImage: fileRecord.isImage,
+      type: fileRecord.type,
+      mimeType: fileRecord.mimeType || fileRecord.type,
+      bytes: fileRecord.bytes
+    });
+
+    updateAttachmentLabel();
+    route('chat');
+    toast(`Attached PDF "${fileName}" to prompt`);
+  }
+} else if (action === 'export') {
     downloadText('berto-export.json', store.exportData(), 'application/json');
   } else if (action === 'import-data') {
     openImportModal();
@@ -1479,6 +1589,27 @@ $('#writing-input')?.addEventListener('input', () => {
   draftTimer = setTimeout(saveDraft, CONFIG.autosaveMs);
 });
 
+// Parse Excel Spreadsheets into clean CSV/Text for Berto
+async function extractExcelText(file) {
+  if (typeof XLSX === 'undefined') {
+    throw new Error('SheetJS library not loaded');
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  let fullText = `=== SPREADSHEET DOCUMENT: ${file.name} ===\n\n`;
+
+  workbook.SheetNames.forEach(sheetName => {
+    const worksheet = workbook.Sheets[sheetName];
+    const csvData = XLSX.utils.sheet_to_csv(worksheet);
+    if (csvData.trim()) {
+      fullText += `--- Sheet: ${sheetName} ---\n${csvData}\n\n`;
+    }
+  });
+
+  return fullText;
+}
+
 $('#file-input')?.addEventListener('change', async event => {
   const files = [...event.target.files];
   const accepted = files.filter(file => file.size <= CONFIG.maxAttachmentSize);
@@ -1495,18 +1626,25 @@ $('#file-input')?.addEventListener('change', async event => {
     try {
       if (isImage) {
         textContent = await fileToBase64(file);
-      } else if (ext === 'pdf') {
-        toast(`Extracting text from PDF: ${file.name}...`);
+      } 
+      else if (ext === 'pdf') {
+        toast(`Extracting PDF text: ${file.name}...`);
         textContent = await extractPdfText(file);
-      } else if (ext === 'docx') {
-        toast(`Extracting text from Word doc: ${file.name}...`);
+      } 
+      else if (ext === 'docx' || ext === 'doc') {
+        toast(`Extracting Word document: ${file.name}...`);
         textContent = await extractDocxText(file);
-      } else if (file.type.startsWith('text/') || ['txt','md','csv','json','js','ts','py','html','css'].includes(ext)) {
+      } 
+      else if (['xlsx', 'xls', 'csv'].includes(ext)) {
+        toast(`Extracting spreadsheet data: ${file.name}...`);
+        textContent = await extractExcelText(file);
+      } 
+      else if (file.type.startsWith('text/') || ['txt','md','json','js','ts','py','html','css','c','cpp','java','sh'].includes(ext)) {
         textContent = await file.text();
       }
     } catch (err) {
       console.error(`Failed to read file ${file.name}:`, err);
-      toast(`Failed to extract text from ${file.name}`, 'error');
+      toast(`Failed to process ${file.name}`, 'error');
       continue;
     }
 
@@ -1599,6 +1737,15 @@ if ('serviceWorker' in navigator && window.location.protocol.startsWith('http'))
 }
 
 // =========================================================
+// Apply Saved UI Settings on Initial Load
+// =========================================================
+if (typeof store !== 'undefined' && store.state) {
+  document.documentElement.setAttribute('data-theme', store.state.theme || 'dark');
+  document.documentElement.setAttribute('data-density', store.state.density || 'comfortable');
+  document.documentElement.setAttribute('data-motion', store.state.motion !== false ? 'full' : 'off');
+}
+
+// =========================================================
 // Initial Render
 // =========================================================
 if ($('#writing-input')) {
@@ -1642,3 +1789,42 @@ if (store.state.voiceFeaturesDisabled) {
 } else {
   detectManagedAccountRestrictions();
 }
+
+// =========================================================
+// RESTORE ACTIVE TAB / ROUTE ON REFRESH & BROWSER BACK/FORWARD
+// =========================================================
+const initialRoute = window.location.hash.slice(1) || store.state.route || 'chat';
+route(initialRoute);
+
+// Listen for Browser Back / Forward buttons & URL Hash changes
+window.addEventListener('hashchange', () => {
+  const hashRoute = window.location.hash.slice(1);
+  if (hashRoute && hashRoute !== store.state.route) {
+    route(hashRoute);
+  }
+});
+
+// =========================================================
+// SERVERLESS WEB WORKER FOR ZERO-LAG PROCESSING IN FILE://
+// =========================================================
+
+const workerCode = `
+  self.onmessage = function(e) {
+    const { action, payload } = e.data;
+    if (action === 'processMarkdown') {
+      // Heavy background text processing
+      const processed = payload.replace(/\\r\\n/g, '\\n');
+      self.postMessage({ action: 'processMarkdown', result: processed });
+    }
+  };
+`;
+
+const blob = new Blob([workerCode], { type: 'application/javascript' });
+window.bertoWorker = new Worker(URL.createObjectURL(blob));
+
+window.bertoWorker.onmessage = function(e) {
+  const { action, result } = e.data;
+  if (action === 'processMarkdown') {
+    // Worker completed background processing without lagging UI thread!
+  }
+};

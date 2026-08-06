@@ -71,3 +71,74 @@ const dbStorage = {
     }
   }
 };
+
+// =========================================================
+// BERTO LONG-TERM PERSISTENT MEMORY (Serverless / IndexedDB)
+// =========================================================
+
+class LocalMemoryEngine {
+  constructor() {
+    this.memoryKey = 'berto-persistent-memories';
+    this.memories = [];
+    this.load();
+  }
+
+  async load() {
+    if (typeof dbStorage !== 'undefined') {
+      const stored = await dbStorage.get('settings', this.memoryKey);
+      if (stored) this.memories = stored;
+    } else {
+      const raw = localStorage.getItem(this.memoryKey);
+      if (raw) this.memories = JSON.parse(raw);
+    }
+  }
+
+  async addMemory(fact) {
+    if (!fact || this.memories.includes(fact)) return;
+    this.memories.push({
+      id: `mem_${Date.now()}`,
+      fact: fact.trim(),
+      date: new Date().toLocaleDateString()
+    });
+    await this.save();
+    if (typeof toast === 'function') toast(`Memory Saved: "${fact.slice(0, 30)}..."`, 'info');
+  }
+
+  async removeMemory(id) {
+    this.memories = this.memories.filter(m => m.id !== id);
+    await this.save();
+  }
+
+  async removeMemoryByText(keyword) {
+    const lower = keyword.toLowerCase();
+    const initialCount = this.memories.length;
+    this.memories = this.memories.filter(m => !m.fact.toLowerCase().includes(lower));
+    if (this.memories.length < initialCount) {
+      await this.save();
+      if (typeof toast === 'function') toast(`Memory forgotten: "${keyword}"`, 'info');
+      return true;
+    }
+    return false;
+  }
+
+  async save() {
+    if (typeof dbStorage !== 'undefined') {
+      await dbStorage.set('settings', this.memoryKey, this.memories);
+    } else {
+      localStorage.setItem(this.memoryKey, JSON.stringify(this.memories));
+    }
+  }
+
+  getSystemPromptContext() {
+    if (!this.memories.length) return '';
+    const factList = this.memories.map(m => `- ${m.fact}`).join('\n');
+    return `
+━━━━━━━━━━━━━━━━━━
+LONG-TERM REMEMBERED FACTS ABOUT USER (MEMORY STORE)
+━━━━━━━━━━━━━━━━━━
+${factList}
+`;
+  }
+}
+
+window.bertoMemory = new LocalMemoryEngine();

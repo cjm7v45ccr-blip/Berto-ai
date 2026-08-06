@@ -602,61 +602,76 @@ function toggleVoiceVideoExpand() {
   }
 }
 
-// Universal file:// safe Web Search Helper
+// =========================================================
+// DYNAMIC DATE-AUGMENTED REAL-TIME WEB SEARCH
+// =========================================================
+
 async function executeWebSearch(query) {
-  console.log('[Berto Agent] Executing Web Search for:', query);
-  if (typeof toast === 'function') toast(`Searching web for "${query}"...`, 'info');
+  // 1. Calculate today's exact date dynamically (e.g. "August 6, 2026")
+  const todayFormatted = new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  // 2. Automatically append "as of [Today's Date]" to the query
+  let searchTarget = query.trim();
+  if (!searchTarget.toLowerCase().includes('as of') && !searchTarget.toLowerCase().includes('202')) {
+    searchTarget = `${searchTarget} as of ${todayFormatted}`;
+  }
+
+  console.log(`[Berto Search] Original: "${query}" | Date-Augmented: "${searchTarget}"`);
+  if (typeof toast === 'function') toast(`Searching live web: "${searchTarget}"...`, 'info');
 
   try {
-    // 1. Query DuckDuckGo Instant Answer API (Native CORS support for file://)
-    const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&no_redirect=1`;
-    const response = await fetch(ddgUrl);
-    const data = await response.json();
-
     let resultsText = '';
 
-    if (data.AbstractText) {
-      resultsText += `DuckDuckGo Result [${data.Heading}]:\n${data.AbstractText}\nSource: ${data.AbstractURL || 'DuckDuckGo'}\n\n`;
-    }
+    // 3. Query Google News RSS with the Date-Augmented Query
+    try {
+      const googleNewsRss = `https://news.google.com/rss/search?q=${encodeURIComponent(searchTarget)}&hl=en-US&gl=US&ceid=US:en`;
+      const rssJsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(googleNewsRss)}`;
+      
+      const newsRes = await fetch(rssJsonUrl);
+      const newsData = await newsRes.json();
 
-    if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      const topics = data.RelatedTopics
-        .filter(t => t.Text)
-        .slice(0, 3)
-        .map((t, idx) => `Result ${idx + 1}: ${t.Text}\nLink: ${t.FirstURL || ''}`)
-        .join('\n\n');
-      if (topics) resultsText += `DuckDuckGo Web Topics:\n${topics}\n\n`;
-    }
+      if (newsData.status === 'ok' && newsData.items && newsData.items.length > 0) {
+        const topNews = newsData.items.slice(0, 4).map((item, idx) => {
+          const cleanSnippet = (item.description || '').replace(/<[^>]+>/g, '').trim();
+          return `[Live Result ${idx + 1}] ${item.title}\nDate Published: ${item.pubDate}\nSnippet: ${cleanSnippet.slice(0, 250)}...\nSource: ${item.link}`;
+        }).join('\n\n');
 
-    // 2. Augment with Wikipedia MediaWiki API (Also natively file:// safe)
-    if (!resultsText || resultsText.length < 100) {
-      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
-      const wikiRes = await fetch(wikiUrl);
-      const wikiData = await wikiRes.json();
-      const wikiResults = wikiData?.query?.search || [];
-
-      if (wikiResults.length > 0) {
-        const pageTitle = wikiResults[0].title;
-        const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(pageTitle)}&format=json&origin=*`;
-        const extractRes = await fetch(extractUrl);
-        const extractData = await extractRes.json();
-        
-        const pages = extractData?.query?.pages || {};
-        const pageId = Object.keys(pages)[0];
-        const extractText = pages[pageId]?.extract || wikiResults[0].snippet.replace(/<[^>]+>/g, '');
-
-        resultsText += `Wikipedia Article [${pageTitle}]:\n${extractText}\nURL: https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/\s+/g, '_'))}`;
+        resultsText += `=== REAL-TIME RESULTS (CURRENT DATE: ${todayFormatted}) ===\n${topNews}\n\n`;
       }
+    } catch (e) {
+      console.warn('[Berto Search] News fetch error:', e);
+    }
+
+    // 4. Fallback to DuckDuckGo if news yields no results
+    if (!resultsText) {
+      try {
+        const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchTarget)}&format=json&no_html=1&no_redirect=1`;
+        const ddgRes = await fetch(ddgUrl);
+        const ddgData = await ddgRes.json();
+
+        if (ddgData.AbstractText) {
+          resultsText += `=== DUCKDUCKGO SUMMARY ===\n${ddgData.Heading}: ${ddgData.AbstractText}\nSource: ${ddgData.AbstractURL}\n\n`;
+        }
+      } catch (e) {}
+    }
+
+    if (!resultsText) {
+      resultsText = `No recent status updates found for "${searchTarget}".`;
     }
 
     return {
       success: true,
-      query: query,
-      searchResults: resultsText || `No direct search matches found for "${query}".`
+      originalQuery: query,
+      augmentedQuery: searchTarget,
+      searchResults: resultsText
     };
   } catch (err) {
-    console.error('[Berto Agent] Search error:', err);
-    return { success: false, error: `Search failed: ${err.message}` };
+    console.error('[Berto Search Error]:', err);
+    return { success: false, error: err.message };
   }
 }
 
@@ -709,16 +724,29 @@ class VoiceEngine {
   _getVoicePersonality() {
     const userInfo = (typeof getUserInfo === 'function') ? getUserInfo() : { name: 'User', initial: 'U' };
     const userName = userInfo.name || 'User';
-    const userInitial = userInfo.initial || 'U';
+
+    // 🕒 DYNAMIC REAL-TIME CLOCK INJECTION
+    const now = new Date();
+    const currentDateTimeStr = now.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
     return `
 ━━━━━━━━━━━━━━━━━━
+CURRENT REAL-TIME DATE & TIME (MANDATORY TEMPORAL CONTEXT)
+━━━━━━━━━━━━━━━━━━
+Today's exact real-time date and time is: ${currentDateTimeStr}.
+When the user asks about current events, people, age, whether someone is alive, sports, or news, ALWAYS evaluate them relative to today's date (${currentDateTimeStr}). Do NOT default to your knowledge cutoff date!
+
+━━━━━━━━━━━━━━━━━━
 CURRENT USER
 ━━━━━━━━━━━━━━━━━━
-
 Name: ${userName}
-Initial: ${userInitial}
-
 You are currently speaking with this user. If the user asks what their name is, always check their profile name (${userName}) and respond naturally.
 
 You are Berto, an advanced, adaptive AI assistant created by Remberto.
@@ -994,7 +1022,7 @@ If Remberto says "bye" or "goodbye", respond with a brief, warm farewell.
                             properties: {
                               action: { 
                                 type: "STRING", 
-                                description: "Action type: 'snap_photo', 'use_writing_studio', 'navigate', 'set_name', 'set_theme', 'type', 'click', 'select', 'new_chat', 'send_chat', 'showcase_features', 'click_text', 'scroll', 'create_artifact'" 
+                                description: "Action type: 'snap_photo', 'use_writing_studio', 'navigate', 'set_name', 'set_theme', 'type', 'click', 'select', 'new_chat', 'send_chat', 'showcase_features', 'click_text', 'scroll', 'create_artifact', 'save_memory', 'delete_memory'"
                               },
                               countdown: { type: "NUMBER", description: "Countdown seconds before snapping photo (default 2)" },
                               format: { type: "STRING", description: "Format for writing studio: 'Essay', 'Email', 'Blog', 'Report', 'Resume', 'Cover Letter'" },

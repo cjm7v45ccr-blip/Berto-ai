@@ -5,15 +5,30 @@ let capturedPhotoBlob = null;
 let activeSpeakingMsgId = null;
 
 function route(routeName) {
+  if (!routeName) routeName = 'chat';
+  
+  // 1. Save route to local store
   store.update({ route: routeName });
+
+  // 2. Toggle active view sections & nav buttons
   $$('.view').forEach(view => view.classList.toggle('active', view.dataset.view === routeName));
   $$('.nav-item[data-route]').forEach(button => button.classList.toggle('active', button.dataset.route === routeName));
+
+  // 3. Update breadcrumb header
   const routeLabels = { chat: 'Chats', writing: 'Writing Studio', files: 'Files', voice: 'Voice', settings: 'Settings' };
   if ($('#breadcrumb')) $('#breadcrumb').textContent = routeLabels[routeName] || routeName[0].toUpperCase() + routeName.slice(1);
+  
   closeMobile();
+
+  // 4. Render specific view views
   if (routeName === 'files') renderFiles();
   if (routeName === 'settings') renderSettings();
   if (routeName === 'voice') initVoiceView();
+
+  // 5. Update browser address bar hash (#settings, #writing, etc.)
+  if (window.location.hash.slice(1) !== routeName) {
+    history.replaceState(null, '', `#${routeName}`);
+  }
 }
 
 function closeMobile() {
@@ -30,13 +45,17 @@ function renderChats(filter = '') {
 
   listEl.innerHTML = chats.map(chat => `
     <div class="chat-item-wrapper ${chat.id === store.state.activeChatId ? 'active' : ''}">
+      <!-- Chat Item -->
       <button class="chat-item ${chat.id === store.state.activeChatId ? 'active' : ''}" data-chat="${chat.id}">
-        <span class="chat-pin-icon ${chat.pinned ? 'is-pinned' : ''}" data-action="pin-chat" data-chat-id="${chat.id}" title="${chat.pinned ? 'Unpin chat' : 'Pin chat'}">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="${chat.pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        </span>
+        ${chat.pinned ? `<span class="pinned-indicator" title="Pinned chat"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>` : ''}
         <span class="chat-title-text">${escapeHtml(chat.title)}</span>
       </button>
+
+      <!-- Hover Action Buttons (Right Side Only) -->
       <div class="chat-item-actions">
+        <button class="chat-action-btn ${chat.pinned ? 'is-pinned' : ''}" data-action="pin-chat" data-chat-id="${chat.id}" title="${chat.pinned ? 'Unpin chat' : 'Pin chat'}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="${chat.pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
         <button class="chat-action-btn" data-action="rename-chat-modal" data-chat-id="${chat.id}" title="Rename">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
@@ -146,6 +165,8 @@ function messageMarkup(message) {
   const isUser = message.role === 'user';
   const { initial: userInitial } = getUserInfo();
 
+  const assistantAvatarHtml = `<img src="./assets/logo.png" alt="Berto" class="assistant-avatar-img">`;
+
   const hasHtml = !isUser && message.content && /```html/i.test(message.content);
   const artifactBtn = hasHtml ? `<button data-action="open-msg-artifact" style="color:var(--accent,#82f3d0); font-weight:600;" class="btn-flex"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg><span>Open Artifact</span></button>` : '';
   const meta = message.model
@@ -181,7 +202,7 @@ function messageMarkup(message) {
 
   return `
     <article class="message ${isUser ? 'user' : 'assistant'}" data-message="${message.id}">
-      <div class="message-avatar">${isUser ? userInitial : 'B'}</div>
+      <div class="message-avatar">${isUser ? userInitial : assistantAvatarHtml}</div>
       <div class="message-stack">
         ${imagesHtml}
         ${filesHtml}

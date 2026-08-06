@@ -129,8 +129,14 @@ async function executeUiSequence(actions) {
         await sleep(300);
       }
       else if (type === 'set_theme') {
-        savePreferences({ theme: step.value });
-        toast(`${LOGO_HTML} Theme updated to ${step.value}`);
+        const themeVal = (step.value || 'dark').toLowerCase();
+        
+        // Trigger the new global function to change the UI visually and save it
+        if (typeof savePreferences === 'function') {
+          savePreferences({ theme: themeVal });
+        }
+        
+        toast(`${LOGO_HTML} Theme updated to ${themeVal.charAt(0).toUpperCase() + themeVal.slice(1)}`);
         await sleep(300);
       }
       else if (type === 'click') {
@@ -308,6 +314,22 @@ async function executeUiSequence(actions) {
       }
       else if (type === 'showcase_features' || type === 'demo' || type === 'show_off') {
         await runFeatureShowcase();
+      }
+      else if (type === 'save_memory' || type === 'remember' || type === 'add_memory') {
+        const memoryFact = step.value || step.text || step.fact || '';
+        if (memoryFact && window.bertoMemory) {
+          await window.bertoMemory.addMemory(memoryFact);
+        } else if (!window.bertoMemory) {
+          console.warn('[Berto] Memory engine unavailable');
+        }
+        await sleep(200);
+      }
+      else if (type === 'delete_memory' || type === 'forget' || type === 'remove_memory') {
+        const targetText = step.value || step.text || step.fact || '';
+        if (targetText && window.bertoMemory) {
+          await window.bertoMemory.removeMemoryByText(targetText);
+        }
+        await sleep(200);
       }
       else if (type === 'use_writing_studio' || type === 'writing_studio' || type === 'draft_in_studio') {
         const format = step.format || step.mode || 'Essay';

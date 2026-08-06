@@ -1,5 +1,47 @@
 // Berto Files Library & PDF/DOCX Text Extraction
 
+// =========================================================
+// CLIENT-SIDE SEMANTIC DOCUMENT CHUNKER & SEARCH (FILE:// SAFE)
+// =========================================================
+
+class DocumentRAGEngine {
+  static chunkDocument(text, chunkSize = 1200, overlap = 200) {
+    const chunks = [];
+    let start = 0;
+    while (start < text.length) {
+      const end = Math.min(start + chunkSize, text.length);
+      chunks.push(text.slice(start, end));
+      start += chunkSize - overlap;
+    }
+    return chunks;
+  }
+
+  static scoreChunk(query, chunk) {
+    const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+    const chunkLower = chunk.toLowerCase();
+    let score = 0;
+
+    for (const term of queryTerms) {
+      const matches = (chunkLower.match(new RegExp(term, 'g')) || []).length;
+      score += matches * 2;
+    }
+    return score;
+  }
+
+  static getRelevantContext(query, fullText, topN = 3) {
+    const chunks = this.chunkDocument(fullText);
+    const scored = chunks.map(chunk => ({
+      chunk,
+      score: this.scoreChunk(query, chunk)
+    }));
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, topN).map(item => item.chunk).join('\n\n--- RELEVANT EXCERPT ---\n\n');
+  }
+}
+
+window.DocumentRAGEngine = DocumentRAGEngine;
+
 function renderFiles() {
   const grid = $('#file-grid');
   if (!grid) return;

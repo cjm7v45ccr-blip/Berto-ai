@@ -1163,3 +1163,36 @@ html[data-theme="light"] .cmd-desc {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================================
+   Artifact Drawer Action Buttons Fix
+   ========================================================= */
+.artifact-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.artifact-actions .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--muted, #8e9d95);
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.artifact-actions .icon-button:hover {
+  color: var(--accent, #82f3d0);
+  background: var(--surface-3, rgba(255, 255, 255, 0.08));
+}
+
+.artifact-actions .icon-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none !important;
+  stroke: currentColor !important;
+}

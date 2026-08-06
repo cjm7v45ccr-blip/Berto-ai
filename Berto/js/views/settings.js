@@ -48,6 +48,20 @@ function renderSettings() {
   const key = $('#api-key-setting');
   if (key && document.activeElement !== key) key.value = localStorage.getItem(CONFIG.storage.apiKey) || '';
 
+  // Sync Appearance controls with the actual saved state
+  const savedTheme = store.state.theme || 'dark';
+  const savedDensity = store.state.density || 'comfortable';
+  const savedMotion = store.state.motion !== false;
+
+  $$('[data-setting-theme]').forEach(button => {
+    button.classList.toggle('active', button.dataset.settingTheme === savedTheme);
+  });
+  $$('[data-setting-density]').forEach(button => {
+    button.classList.toggle('active', button.dataset.settingDensity === savedDensity);
+  });
+  const motionToggle = $('#motion-toggle');
+  if (motionToggle) motionToggle.checked = savedMotion;
+
   const content = $('.settings-content');
   const aiSection = $$('.settings-section')[1];
   if (aiSection && !$('#voice-restriction-setting-row')) {

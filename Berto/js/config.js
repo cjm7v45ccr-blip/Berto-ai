@@ -75,22 +75,31 @@ MATH & LATEX FORMATTING RULES
 `;
 
 const CHECKLIST_RULE = `
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━
 CHECKLIST RULE
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━
 When asked for a checklist or task list, format every task item as a markdown checkbox:
 - [ ] Task Title: Short technical description
 `;
 
+const BERTO_DOCUMENT_POLICY = `
+━━━━━━━━━━━━━━━━━━
+DOCUMENT & FILE CITATION POLICY
+━━━━━━━━━━━━━━━━━━
+When answering questions about attached files or PDFs:
+1. Reference exact page numbers whenever available (e.g., "According to Page 4 of [Document Name]...").
+2. If analyzing spreadsheets (.xlsx / .csv), present summarized data in Markdown tables or generate Chart.js visualizations.
+`;
+
 const CONFIG = Object.freeze({
-  maxContextMessages: 20,
-  maxMessageChars: 8000,
+  maxContextMessages: 80,
+  maxMessageChars: 30000,
   autosaveMs: 5000,
-  requestTimeoutMs: 30000,
-  streamTimeoutMs: 60000,
+  requestTimeoutMs: 120000, // 60s for large files
+  streamTimeoutMs: 120000,
   maxRetries: 3,
-  maxAttachmentSize: 7 * 1024 * 1024,
-  maxContextBytes: 20 * 1024 * 1024,
+  maxAttachmentSize: 100 * 1024 * 1024,
+  maxContextBytes: 100 * 1024 * 1024,
   models: Object.freeze([
     { id: 'flash', label: 'Berto Fast', apiModel: 'gemini-3.6-flash', dailyLimit: 20 },
     { id: 'lite', label: 'Berto Lite', apiModel: 'gemini-3.5-flash-lite', dailyLimit: 100 },
@@ -234,15 +243,24 @@ function fileToBase64(file) {
 
 // Helper functions for binary document text extraction
 async function extractPdfText(file) {
+  if (typeof pdfjsLib === 'undefined') {
+    throw new Error('PDF.js library is not loaded');
+  }
+  
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  let fullText = '';
+  let fullText = `=== PDF DOCUMENT: ${file.name} (${pdf.numPages} Pages) ===\n\n`;
+
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const pageText = content.items.map(item => item.str).join(' ');
-    fullText += `--- Page ${i} ---\n${pageText}\n\n`;
+    
+    if (pageText.trim()) {
+      fullText += `--- Page ${i} ---\n${pageText}\n\n`;
+    }
   }
+
   return fullText;
 }
 
