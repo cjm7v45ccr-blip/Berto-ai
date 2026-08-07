@@ -859,64 +859,241 @@
 }
 
 /* =========================================================
-   Conversation Activity Minimap Scrollbar
+   Sleek Timeline Navigation Track & Minimap (Grok Style)
    ========================================================= */
 
 .chat-area {
   display: flex;
   flex: 1;
   min-height: 0;
-  gap: 8px;
+  gap: 12px;
 }
 
 .chat-minimap {
   position: relative;
-  flex: 0 0 10px;
-  width: 10px;
-  border-radius: 99px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.06));
-  border-left: 1px solid var(--border);
-  cursor: pointer;
+  flex: 0 0 32px;
+  width: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   margin: 54px 0 16px;
-  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+  padding: 8px 0;
+  border: 1px solid var(--border);
+  background: rgba(16, 20, 18, 0.45);
+  border-radius: 999px; /* Rounded capsule enclosure */
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  -webkit-user-select: none;
+  user-select: none;
+  z-index: 10;
+  transition: border-color 0.25s var(--ease), background 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
 
 .chat-minimap:hover {
-  background: linear-gradient(180deg, rgba(130,243,208,0.06), rgba(255,255,255,0.08));
-  border-left-color: var(--accent-strong);
+  background: rgba(16, 20, 18, 0.82);
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
-.minimap-dot {
+/* Circular Prev / Forward Response Arrow Buttons */
+.minimap-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.22, 0.8, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.minimap-nav-btn:hover {
+  color: #ffffff;
+  background: var(--surface-3);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(130, 243, 208, 0.35);
+  transform: scale(1.1);
+}
+
+.minimap-nav-btn:active {
+  transform: scale(0.92);
+}
+
+.minimap-nav-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
+}
+
+/* Track Container for Centered Ticks */
+.minimap-ticks-track {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  margin: 8px 0;
+}
+
+/* Centered Tick Marker */
+.minimap-tick {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  /* Perfectly centers the tick horizontally & vertically on target point */
+  transform: translate(-50%, -50%); 
+  height: 3.5px;
+  width: 14px;
+  border-radius: 99px;
   cursor: pointer;
-  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
-  pointer-events: auto;
+  transition: all 0.2s cubic-bezier(0.22, 0.8, 0.2, 1);
 }
 
-.minimap-dot:hover {
-  transform: translateX(-50%) scale(1.6);
-  box-shadow: 0 0 8px rgba(130, 243, 208, 0.5);
+.minimap-tick.ai-tick {
+  background: var(--accent, #82f3d0);
+  box-shadow: 0 0 6px rgba(130, 243, 208, 0.4);
 }
 
-.minimap-dot.ai-marker {
-  background: var(--accent);
-  box-shadow: 0 0 6px rgba(130, 243, 208, 0.35);
-}
-
-.minimap-dot.user-marker {
+.minimap-tick.user-tick {
   background: #f472b6;
-  box-shadow: 0 0 6px rgba(244, 114, 182, 0.35);
+  box-shadow: 0 0 6px rgba(244, 114, 182, 0.4);
 }
 
-/* Active / current-view indicator */
-.chat-minimap .minimap-dot.active-marker {
-  box-shadow: 0 0 10px rgba(130, 243, 208, 0.75);
-  outline: 2px solid rgba(255,255,255,0.35);
+.minimap-tick:hover {
+  width: 20px !important;
+  height: 5px !important;
+  box-shadow: 0 0 12px var(--accent) !important;
+  z-index: 5;
+}
+
+.minimap-tick.active-tick {
+  width: 22px !important;
+  height: 5px !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.9), 0 0 8px var(--accent) !important;
+  z-index: 4;
+}
+
+/* Floating Hover Preview Card */
+.minimap-tooltip {
+  position: absolute;
+  right: 36px;
+  width: 230px;
+  padding: 10px 14px;
+  background: rgba(18, 23, 20, 0.95);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(130, 243, 208, 0.1);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-50%) translateX(6px);
+  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
+  z-index: 100;
+}
+
+.minimap-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.minimap-tooltip-role {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+
+.minimap-tooltip.ai .minimap-tooltip-role {
+  color: var(--accent);
+}
+
+.minimap-tooltip.user .minimap-tooltip-role {
+  color: #f472b6;
+}
+
+.minimap-tooltip-snippet {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+/* Light Theme Support */
+html[data-theme="light"] .chat-minimap {
+  background: rgba(255, 255, 255, 0.6);
+  border-left-color: var(--border);
+}
+
+html[data-theme="light"] .minimap-tooltip {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--border-strong);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
+html[data-theme="light"] .minimap-tooltip-snippet {
+  color: #0f172a;
+}
+
+/* =========================================================
+   Minimap Jump Message Highlight Animation
+   ========================================================= */
+
+@keyframes aiHighlightPulse {
+  0% {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 28px rgba(130, 243, 208, 0.5);
+    background: rgba(130, 243, 208, 0.12);
+  }
+  60% {
+    box-shadow: 0 0 0 2px rgba(130, 243, 208, 0.4), 0 0 16px rgba(130, 243, 208, 0.2);
+    background: rgba(130, 243, 208, 0.06);
+  }
+  100% {
+    box-shadow: none;
+    background: transparent;
+  }
+}
+
+@keyframes userHighlightPulse {
+  0% {
+    box-shadow: 0 0 0 2px #f472b6, 0 0 28px rgba(244, 114, 182, 0.5);
+    background: rgba(244, 114, 182, 0.12);
+  }
+  60% {
+    box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.4), 0 0 16px rgba(244, 114, 182, 0.2);
+    background: rgba(244, 114, 182, 0.06);
+  }
+  100% {
+    box-shadow: none;
+    background: transparent;
+  }
+}
+
+.message.highlight-jump {
+  border-radius: 16px;
+  padding: 8px 12px;
+  transition: all 0.2s ease;
+}
+
+.message.highlight-jump.assistant {
+  animation: aiHighlightPulse 2.2s cubic-bezier(0.22, 0.8, 0.2, 1) forwards;
+}
+
+.message.highlight-jump.user {
+  animation: userHighlightPulse 2.2s cubic-bezier(0.22, 0.8, 0.2, 1) forwards;
 }
 
 /* Hide minimap on small screens */

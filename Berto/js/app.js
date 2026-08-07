@@ -536,7 +536,7 @@ async function send(text) {
 
   const baseSystemInstruction = `CURRENT USER & CREATOR
 ━━━━━━━━━━
-You are currently speaking with Remberto, your creator.
+You are currently speaking with ${userName}.
 
 You are Berto, an advanced, highly capable, and deeply knowledgeable AI assistant.
 
@@ -1655,18 +1655,19 @@ $('#file-input')?.addEventListener('change', async event => {
   }
 
   let processedCount = 0;
+  // Check if user is currently on the Files tab
+  const isFilesTab = store.state.route === 'files';
 
   for (const file of accepted) {
     let targetName = file.name;
     const existingFile = store.state.files.find(f => f.name === targetName);
 
-    // Check for Duplicate File
     if (existingFile) {
       const choice = await promptDuplicateFile(targetName);
 
       if (choice === 'cancel') {
         toast(`Skipped "${targetName}"`, 'info');
-        continue; // Skip this file
+        continue;
       } else if (choice === 'replace') {
         store.removeFile(targetName);
         currentAttachments = currentAttachments.filter(a => a.name !== targetName);
@@ -1716,21 +1717,32 @@ $('#file-input')?.addEventListener('change', async event => {
       bytes: file.size
     };
 
+    // 1. Always save to workspace library
     store.addFile(fileObj);
-    currentAttachments.push({
-      ...fileObj,
-      file
-    });
+
+    // 2. ONLY push to chat queue if uploaded from the Chat tab
+    if (!isFilesTab) {
+      currentAttachments.push({
+        ...fileObj,
+        file
+      });
+    }
     processedCount++;
   }
 
-  // Reset file input so re-selecting the same file fires event
   event.target.value = '';
 
   updateAttachmentLabel();
   updateCount();
   renderFiles();
-  if (processedCount > 0) toast(`${processedCount} file(s) processed`);
+
+  if (processedCount > 0) {
+    if (isFilesTab) {
+      toast(`${processedCount} file(s) saved to Workspace Library`);
+    } else {
+      toast(`${processedCount} file(s) attached to chat`);
+    }
+  }
 });
 
 $('#api-key-setting')?.addEventListener('change', event => {
@@ -1839,9 +1851,7 @@ if (document.readyState === 'loading') {
 renderChats();
 renderMessages();
 renderFiles();
-renderWritingProfile();
 renderSettings();
-writingMetrics();
 updateCount();
 initSetup();
 
@@ -1855,16 +1865,26 @@ if (store.state.voiceFeaturesDisabled) {
 // =========================================================
 // RESTORE ACTIVE TAB / ROUTE ON REFRESH & BROWSER BACK/FORWARD
 // =========================================================
-const savedRoute = window.location.hash.slice(1) 
-  || localStorage.getItem('berto-active-route') 
-  || store.state.route 
-  || 'chat';
+function restoreActiveTab() {
+  const hash = window.location.hash.replace('#', '').trim();
+  const stored = localStorage.getItem('berto-active-route');
+  
+  // Priority: 1. URL Hash -> 2. LocalStorage -> 3. Store State -> 4. Default ('chat')
+  const savedRoute = hash || stored || store.state.route || 'chat';
 
-route(savedRoute);
+  route(savedRoute);
+}
+
+// Guarantee restoration runs after all views and DOM elements are ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', restoreActiveTab);
+} else {
+  restoreActiveTab();
+}
 
 // Listen for Browser Back / Forward buttons & URL Hash changes
 window.addEventListener('hashchange', () => {
-  const hashRoute = window.location.hash.slice(1);
+  const hashRoute = window.location.hash.replace('#', '').trim();
   if (hashRoute && hashRoute !== store.state.route) {
     route(hashRoute);
   }

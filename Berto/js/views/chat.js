@@ -13,24 +13,38 @@ function route(routeName) {
     localStorage.setItem('berto-active-route', routeName);
   } catch (e) {}
 
-  // 2. Toggle active view sections & nav buttons
-  $$('.view').forEach(view => view.classList.toggle('active', view.dataset.view === routeName));
-  $$('.nav-item[data-route]').forEach(button => button.classList.toggle('active', button.dataset.route === routeName));
+  // 2. Toggle active view sections & navigation items
+  $$('.view').forEach(view => {
+    const isActive = view.dataset.view === routeName;
+    view.classList.toggle('active', isActive);
+  });
+  
+  $$('.nav-item[data-route]').forEach(button => {
+    button.classList.toggle('active', button.dataset.route === routeName);
+  });
 
-  // 3. Update breadcrumb header
-  const routeLabels = { chat: 'Chats', writing: 'Writing Studio', files: 'Files', voice: 'Voice', settings: 'Settings' };
-  if ($('#breadcrumb')) $('#breadcrumb').textContent = routeLabels[routeName] || routeName[0].toUpperCase() + routeName.slice(1);
+  // 3. Update topbar breadcrumb label
+  const routeLabels = { 
+    chat: 'Chats', 
+    writing: 'Writing Studio', 
+    files: 'Files', 
+    voice: 'Voice', 
+    settings: 'Settings' 
+  };
+  if ($('#breadcrumb')) {
+    $('#breadcrumb').textContent = routeLabels[routeName] || (routeName[0].toUpperCase() + routeName.slice(1));
+  }
   
   closeMobile();
 
-  // 4. Render specific view views
+  // 4. Render specific view contents
   if (routeName === 'files') renderFiles();
   if (routeName === 'settings') renderSettings();
   if (routeName === 'voice') initVoiceView();
 
-  // 5. Update browser address bar hash (#settings, #writing, etc.)
+  // 5. Sync the URL hash (#settings, #files, etc.)
   if (window.location.hash.slice(1) !== routeName) {
-    window.location.hash = routeName;
+    window.history.replaceState(null, '', `#${routeName}`);
   }
 }
 
@@ -99,40 +113,162 @@ function renderMessages() {
 // =========================================================
 // Conversation Activity Minimap (Activity Markers on Scrollbar)
 // =========================================================
+
+// Helper to scroll smoothly and trigger a glowing pulse highlight
+function scrollToAndHighlightMessage(msg) {
+  if (!msg) return;
+
+  // Clear any existing active highlights
+  document.querySelectorAll('.message.highlight-jump').forEach(m => {
+    m.classList.remove('highlight-jump');
+  });
+
+  // Scroll message precisely to vertical center
+  msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Trigger pulse animation
+  void msg.offsetWidth; // Force reflow
+  msg.classList.add('highlight-jump');
+
+  // Clean up class after animation ends
+  setTimeout(() => {
+    msg.classList.remove('highlight-jump');
+  }, 2300);
+}
+
 function updateMinimapMarkers() {
-  const track = $('#chat-minimap');
+  const minimap = $('#chat-minimap');
   const messagesBox = $('#messages');
-  if (!track || !messagesBox) return;
+  const scrollContainer = $('.chat-scroll');
+  if (!minimap || !messagesBox) return;
 
-  // Clear existing markers
-  track.innerHTML = '';
+  const messages = [...messagesBox.querySelectorAll('article.message')];
 
-const messages = messagesBox.querySelectorAll('article.message');
-  const totalHeight = messagesBox.scrollHeight;
-
-  if (!messages.length || totalHeight <= 0) {
-    track.style.display = 'none';
+  if (!messages.length) {
+    minimap.style.display = 'none';
     return;
   }
-  track.style.display = '';
+  minimap.style.display = 'flex';
 
-  messages.forEach((msg, index) => {
-    const topOffset = msg.offsetTop;
-    const percentage = (topOffset / totalHeight) * 100;
+  let currentMsgIndex = 0;
 
-    const dot = document.createElement('div');
-    dot.className = 'minimap-dot';
-    dot.classList.add(msg.classList.contains('user') ? 'user-marker' : 'ai-marker');
-    dot.style.top = `${percentage}%`;
-    dot.title = `Jump to message #${index + 1}`;
+  // Navigation track with Prev (Up) and Forward (Down) response arrows
+  minimap.innerHTML = `
+    <button class="minimap-nav-btn prev" title="Previous Response (Jump Up)">
+      <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+    </button>
+    <div class="minimap-ticks-track" id="minimap-ticks-track"></div>
+    <button class="minimap-nav-btn next" title="Forward Response (Jump Down)">
+      <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="minimap-tooltip" id="minimap-tooltip">
+      <div class="minimap-tooltip-role">Berto</div>
+      <div class="minimap-tooltip-snippet">...</div>
+    </div>
+  `;
 
-    dot.addEventListener('click', (e) => {
-      e.stopPropagation();
-      msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const ticksTrack = $('#minimap-ticks-track', minimap);
+  const tooltip = $('#minimap-tooltip', minimap);
+  const prevBtn = $('.minimap-nav-btn.prev', minimap);
+  const nextBtn = $('.minimap-nav-btn.next', minimap);
+
+  const scrollHeight = messagesBox.scrollHeight || 1;
+
+  messages.forEach((msg, idx) => {
+    const isUser = msg.classList.contains('user');
+
+    // 🎯 CENTER ALIGNMENT: Calculate exact vertical midpoint of message
+    const msgCenter = msg.offsetTop + (msg.offsetHeight / 2);
+    const percentage = Math.min(95, Math.max(5, (msgCenter / scrollHeight) * 100));
+
+    const tick = document.createElement('div');
+    tick.className = `minimap-tick ${isUser ? 'user-tick' : 'ai-tick'}`;
+    tick.style.top = `${percentage}%`;
+    tick.dataset.msgIdx = idx;
+
+    const roleText = isUser ? 'You' : 'Berto';
+    const bodyText = msg.querySelector('.message-body')?.textContent?.trim() || 'Message';
+
+    // Interactive Hover Preview Card
+    tick.addEventListener('mouseenter', () => {
+      if (tooltip) {
+        $('.minimap-tooltip-role', tooltip).textContent = roleText;
+        $('.minimap-tooltip-snippet', tooltip).textContent = bodyText;
+        tooltip.className = `minimap-tooltip is-visible ${isUser ? 'user' : 'ai'}`;
+        
+        // Align tooltip vertically with hover tick
+        const tickRect = tick.getBoundingClientRect();
+        const minimapRect = minimap.getBoundingClientRect();
+        tooltip.style.top = `${tickRect.top - minimapRect.top + 8}px`;
+      }
     });
 
-    track.appendChild(dot);
+    tick.addEventListener('mouseleave', () => {
+      if (tooltip) tooltip.classList.remove('is-visible');
+    });
+
+// 🎯 CLICK HANDLER: Smooth Scroll + Precise Glowing Highlight
+    tick.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentMsgIndex = idx;
+      if (tooltip) tooltip.classList.remove('is-visible');
+      scrollToAndHighlightMessage(msg);
+    });
+
+    ticksTrack.appendChild(tick);
   });
+
+  // Previous Response Arrow (Up)
+  if (prevBtn) {
+    prevBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (currentMsgIndex > 0) {
+        currentMsgIndex--;
+      } else {
+        currentMsgIndex = messages.length - 1; // Loop back
+      }
+      scrollToAndHighlightMessage(messages[currentMsgIndex]);
+    };
+  }
+
+  // Forward Response Arrow (Down)
+  if (nextBtn) {
+    nextBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (currentMsgIndex < messages.length - 1) {
+        currentMsgIndex++;
+      } else {
+        currentMsgIndex = 0; // Loop forward
+      }
+      scrollToAndHighlightMessage(messages[currentMsgIndex]);
+    };
+  }
+
+  // Sync Active Tick with Visible Screen Position
+  if (scrollContainer && !scrollContainer._minimapScrollAttached) {
+    scrollContainer._minimapScrollAttached = true;
+    scrollContainer.addEventListener('scroll', () => {
+      const scrollPos = scrollContainer.scrollTop + (scrollContainer.clientHeight / 2);
+      
+      let closestIdx = 0;
+      let minDistance = Infinity;
+
+      messages.forEach((msg, idx) => {
+        const msgCenter = msg.offsetTop + (msg.offsetHeight / 2);
+        const dist = Math.abs(msgCenter - scrollPos);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestIdx = idx;
+        }
+      });
+
+      currentMsgIndex = closestIdx;
+
+      $$('.minimap-tick', ticksTrack).forEach((t, i) => {
+        t.classList.toggle('active-tick', i === closestIdx);
+      });
+    }, { passive: true });
+  }
 }
 
 // Keep minimap in sync with new messages, chat switches, and window resizes
