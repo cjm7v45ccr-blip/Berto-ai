@@ -344,22 +344,57 @@
    ========================================================= */
 
 @media (max-width: 800px) {
-  .settings-layout {
-    grid-template-columns: 1fr;
-  }
-  .settings-nav {
-    flex-direction: row;
-    overflow: auto;
-  }
-  .settings-nav button {
-    white-space: nowrap;
-  }
-  .setting-row {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .setting-row > div {
-    width: 100%;
-  }
+   .settings-layout {
+     grid-template-columns: 1fr;
+   }
+   .settings-nav {
+     flex-direction: row;
+     overflow: auto;
+   }
+   .settings-nav button {
+     white-space: nowrap;
+   }
+   .setting-row {
+     align-items: flex-start;
+     flex-direction: column;
+     gap: 10px;
+   }
+   .setting-row > div {
+     width: 100%;
+   }
+ }
+
+/* =========================================================
+   Settings Light Theme Fixes (Segmented Control Pills)
+   ========================================================= */
+
+html[data-theme="light"] .segmented {
+  background: #e4ebe7;
+  border-color: var(--border-strong);
+}
+
+html[data-theme="light"] .segmented button {
+  color: var(--muted);
+}
+
+html[data-theme="light"] .segmented button:hover {
+  color: var(--text);
+}
+
+html[data-theme="light"] .segmented button.active {
+  background: #ffffff;
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(12, 45, 30, 0.1);
+}
+
+html[data-theme="light"] .settings-section {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+html[data-theme="light"] .settings-nav {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--border-strong);
 }

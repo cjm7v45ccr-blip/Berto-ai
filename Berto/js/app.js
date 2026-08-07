@@ -1,6 +1,27 @@
 // Berto App Initialization, Event Delegation & Slash Commands
 
 // =========================================================
+// GLOBAL USER PROFILE & AVATAR SYNC ENGINE
+// =========================================================
+window.updateUserProfileUI = function() {
+  const { name, initial } = getUserInfo();
+
+  if ($('#welcome-name')) $('#welcome-name').textContent = name;
+  if ($('#sidebar-name')) $('#sidebar-name').textContent = name;
+  if ($('.profile-row .avatar')) $('.profile-row .avatar').textContent = initial;
+  if ($('.top-avatar')) $('.top-avatar').textContent = initial;
+
+  const nameSetting = $('#name-setting');
+  if (nameSetting && document.activeElement !== nameSetting) {
+    nameSetting.value = name;
+  }
+
+  $$('.message.user .message-avatar').forEach(el => {
+    el.textContent = initial;
+  });
+};
+
+// =========================================================
 // Global Preference Manager (Fixes Theme, Density & Motion)
 // =========================================================
 window.savePreferences = function(patch) {
@@ -27,6 +48,10 @@ window.savePreferences = function(patch) {
     localStorage.setItem(prefsKey, JSON.stringify({ ...currentPrefs, ...patch }));
   } catch (e) {
     console.warn('Could not save preferences to localStorage', e);
+  }
+  
+  if (typeof window.updateUserProfileUI === 'function') {
+    window.updateUserProfileUI();
   }
 };
 
@@ -536,7 +561,7 @@ async function send(text) {
 
   const baseSystemInstruction = `CURRENT USER & CREATOR
 ━━━━━━━━━━
-You are currently speaking with ${userName}.
+You are currently speaking with Remberto, your creator.
 
 You are Berto, an advanced, highly capable, and deeply knowledgeable AI assistant.
 
@@ -1914,3 +1939,6 @@ window.bertoWorker.onmessage = function(e) {
     // Worker completed background processing without lagging UI thread!
   }
 };
+
+// Sync avatars on load
+updateUserProfileUI();

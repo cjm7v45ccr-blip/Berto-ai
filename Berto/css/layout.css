@@ -465,10 +465,10 @@
 }
 
 .top-avatar {
-  color: #211812;
-  font-size: 12px;
-  width: 28px;
-  height: 28px;
+  color: inherit !important;
+  font-size: 13px;
+  width: 30px;
+  height: 30px;
 }
 
 .view {

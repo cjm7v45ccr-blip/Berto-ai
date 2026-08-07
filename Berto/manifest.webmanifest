@@ -1,7 +1,7 @@
 {
   "name": "Berto · AI Workspace",
   "short_name": "Berto",
-  "description": "A calm, capable AI workspace for thinking and getting things done.",
+  "description": "A calm, capable AI workspace for thinking, writing, and getting things done.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#070908",

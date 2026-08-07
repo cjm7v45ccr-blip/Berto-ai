@@ -1369,3 +1369,71 @@ html[data-theme="light"] .cmd-desc {
     width: 100%;
   }
 }
+
+/* =========================================================
+   ULTRA-PREMIUM AVATAR MONOGRAM BADGES (Dark & Light Theme)
+   ========================================================= */
+
+/* 1. Large Profile Avatar (Profile Modal) - Dark Theme Default */
+.large-avatar {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  
+  /* Frosted Dark Glass with Subtle Mesh Glow */
+  background: radial-gradient(circle at 35% 35%, rgba(130, 243, 208, 0.22), rgba(12, 142, 117, 0.08)), #111714;
+  border: 1.5px solid rgba(130, 243, 208, 0.38);
+  color: var(--accent, #82f3d0);
+  
+  /* Sleek Geometric Monogram Typography */
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  
+  /* Layered Depth: Outer Ambient Glow + Inner Glass Rim Reflection */
+  box-shadow: 0 0 30px rgba(130, 243, 208, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  transition: all 0.25s var(--ease);
+}
+
+.large-avatar:hover {
+  transform: scale(1.04);
+  border-color: var(--accent);
+  box-shadow: 0 0 40px rgba(130, 243, 208, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+/* 2. Small Avatars (Sidebar, Message Feed & Topbar) */
+.avatar,
+.user .message-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(130, 243, 208, 0.22), rgba(12, 142, 117, 0.08)), #111714;
+  border: 1px solid rgba(130, 243, 208, 0.32);
+  color: var(--accent, #82f3d0);
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 0 14px rgba(130, 243, 208, 0.12), inset 0 1px 0.5px rgba(255, 255, 255, 0.2);
+}
+
+/* 3. LIGHT THEME OVERRIDES (Soft Luminous Emerald Glass) */
+html[data-theme="light"] .large-avatar {
+  background: radial-gradient(circle at 35% 35%, #e8f7f2, #d2ede3);
+  border: 1.5px solid rgba(12, 142, 117, 0.32);
+  color: #0c8e75;
+  box-shadow: 0 6px 20px rgba(12, 142, 117, 0.12), inset 0 1px 1.5px #ffffff;
+}
+
+html[data-theme="light"] .avatar,
+html[data-theme="light"] .user .message-avatar {
+  background: radial-gradient(circle at 35% 35%, #e8f7f2, #d2ede3);
+  border: 1px solid rgba(12, 142, 117, 0.28);
+  color: #0c8e75;
+  box-shadow: 0 2px 10px rgba(12, 142, 117, 0.08), inset 0 1px 1px #ffffff;
+}

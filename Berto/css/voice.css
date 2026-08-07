@@ -1267,3 +1267,186 @@ html[data-theme="light"] .voice-video-btn:hover {
   color: var(--text);
   font-weight: 500;
 }
+
+/* =========================================================
+   Voice Mode Light Theme Fixes (Removes Dark Charcoal Boxes)
+   ========================================================= */
+
+html[data-theme="light"] .voice-chat-pane {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme="light"] .voice-pane-header h3,
+html[data-theme="light"] .bento-metric-val {
+  color: var(--text);
+}
+
+html[data-theme="light"] .bento-card {
+  background: #f2f7f4;
+  border-color: var(--border);
+}
+
+html[data-theme="light"] .bento-card:hover {
+  background: #e8f2ee;
+  border-color: var(--accent);
+}
+
+html[data-theme="light"] .dash-pill {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  color: var(--muted);
+}
+
+html[data-theme="light"] .dash-pill.is-active {
+  background: var(--accent-wash);
+  color: var(--accent);
+  border-color: rgba(12, 142, 117, 0.3);
+}
+
+html[data-theme="light"] .session-timer {
+  background: var(--accent-wash);
+  color: var(--accent);
+  border-color: rgba(12, 142, 117, 0.25);
+}
+
+html[data-theme="light"] .live-text-bar-wrap {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 24px rgba(12, 45, 30, 0.08);
+}
+
+html[data-theme="light"] .live-text-input {
+  color: var(--text);
+}
+
+html[data-theme="light"] .live-text-input::placeholder {
+  color: var(--faint);
+}
+
+html[data-theme="light"] .voice-stage-container {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+/* =========================================================
+   Voice Stage & Button Outline Fixes (Light Theme & SVG Fix)
+   ========================================================= */
+
+/* 1. FIX FILLED ICONS: Force crisp outline strokes on Camera, Screen & Reset buttons */
+.voice-tool-btn svg,
+#voice-camera-btn svg,
+#voice-screen-btn svg,
+#voice-reset-btn svg {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2px !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+/* 2. LIGHT MODE VOICE ORB: Glowing Luminous Mint Gradient (Replaces Dark Sphere) */
+html[data-theme="light"] #voice-canvas-visualizer {
+  background: radial-gradient(circle, rgba(12, 142, 117, 0.14) 0%, rgba(238, 245, 241, 0.85) 75%);
+  border: 1px solid rgba(12, 142, 117, 0.25);
+  box-shadow: 0 0 50px rgba(12, 142, 117, 0.12), inset 0 0 30px rgba(12, 142, 117, 0.08);
+}
+
+/* 3. LIGHT MODE WAVE PILL: White Glass Capsule (Replaces Dark Pill) */
+html[data-theme="light"] .voice-wave {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 14px rgba(12, 45, 30, 0.08);
+}
+
+html[data-theme="light"] .voice-wave span {
+  background: var(--accent);
+}
+
+/* 4. LIGHT MODE CONTROL BUTTONS: White Floating Action Cards */
+html[data-theme="light"] .voice-controls-bar {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 24px rgba(12, 45, 30, 0.06);
+}
+
+html[data-theme="light"] .voice-controls .voice-tool-btn {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  color: var(--muted);
+  box-shadow: 0 2px 8px rgba(12, 45, 30, 0.04);
+}
+
+html[data-theme="light"] .voice-controls .voice-tool-btn:hover {
+  background: #ffffff;
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 4px 16px rgba(12, 142, 117, 0.12);
+  transform: translateY(-2px);
+}
+
+html[data-theme="light"] .voice-controls .voice-tool-btn:hover svg {
+  color: var(--accent) !important;
+}
+
+/* =========================================================
+   Voice Stage & Button Outline Fixes (Light Theme & SVG Fix)
+   ========================================================= */
+
+/* 1. FIX FILLED ICONS: Force crisp outline strokes on Camera, Screen & Reset buttons */
+.voice-tool-btn svg,
+#voice-camera-btn svg,
+#voice-screen-btn svg,
+#voice-reset-btn svg {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2px !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+/* 2. LIGHT MODE VOICE ORB: Glowing Luminous Mint Gradient (Replaces Dark Sphere) */
+html[data-theme="light"] #voice-canvas-visualizer {
+  background: radial-gradient(circle, rgba(12, 142, 117, 0.14) 0%, rgba(238, 245, 241, 0.85) 75%);
+  border: 1px solid rgba(12, 142, 117, 0.25);
+  box-shadow: 0 0 50px rgba(12, 142, 117, 0.12), inset 0 0 30px rgba(12, 142, 117, 0.08);
+}
+
+/* 3. LIGHT MODE WAVE PILL: White Glass Capsule (Replaces Dark Pill) */
+html[data-theme="light"] .voice-wave {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 14px rgba(12, 45, 30, 0.08);
+}
+
+html[data-theme="light"] .voice-wave span {
+  background: var(--accent);
+}
+
+/* 4. LIGHT MODE CONTROL BUTTONS: White Floating Action Cards */
+html[data-theme="light"] .voice-controls-bar {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 24px rgba(12, 45, 30, 0.06);
+}
+
+html[data-theme="light"] .voice-controls .voice-tool-btn {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  color: var(--muted);
+  box-shadow: 0 2px 8px rgba(12, 45, 30, 0.04);
+}
+
+html[data-theme="light"] .voice-controls .voice-tool-btn:hover {
+  background: #ffffff;
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 4px 16px rgba(12, 142, 117, 0.12);
+  transform: translateY(-2px);
+}
+
+html[data-theme="light"] .voice-controls .voice-tool-btn:hover svg {
+  color: var(--accent) !important;
+}
