@@ -1022,11 +1022,11 @@ If Remberto says "bye" or "goodbye", respond with a brief, warm farewell.
                             properties: {
                               action: { 
                                 type: "STRING", 
-                                description: "Action type: 'snap_photo', 'use_writing_studio', 'navigate', 'set_name', 'set_theme', 'type', 'click', 'select', 'new_chat', 'send_chat', 'showcase_features', 'click_text', 'scroll', 'create_artifact', 'save_memory', 'delete_memory'"
+                                description: "Action type: 'snap_photo', 'use_writing_studio', 'navigate', 'set_name', 'set_theme', 'type', 'click', 'select', 'new_chat', 'send_chat', 'showcase_features', 'click_text', 'scroll', 'create_artifact', 'save_memory', 'delete_memory'" 
                               },
                               countdown: { type: "NUMBER", description: "Countdown seconds before snapping photo (default 2)" },
-                              format: { type: "STRING", description: "Format for writing studio: 'Essay', 'Email', 'Blog', 'Report', 'Resume', 'Cover Letter'" },
-                              prompt: { type: "STRING", description: "Topic/prompt for Writing Studio or question to analyze with snapped photo" },
+                              format: { type: "STRING", description: "Format: 'Essay', 'Email', 'Blog', 'Report', 'Resume', 'Cover Letter'" },
+                              prompt: { type: "STRING", description: "Topic/prompt or question to analyze with snapped photo" },
                               value: { type: "STRING", description: "Text value or message" },
                               target: { type: "STRING", description: "Action or element target name" },
                               selector: { type: "STRING", description: "CSS element selector" },

@@ -7,8 +7,11 @@ let activeSpeakingMsgId = null;
 function route(routeName) {
   if (!routeName) routeName = 'chat';
   
-  // 1. Save route to local store
+  // 1. Save active route to store & localStorage
   store.update({ route: routeName });
+  try {
+    localStorage.setItem('berto-active-route', routeName);
+  } catch (e) {}
 
   // 2. Toggle active view sections & nav buttons
   $$('.view').forEach(view => view.classList.toggle('active', view.dataset.view === routeName));
@@ -27,7 +30,7 @@ function route(routeName) {
 
   // 5. Update browser address bar hash (#settings, #writing, etc.)
   if (window.location.hash.slice(1) !== routeName) {
-    history.replaceState(null, '', `#${routeName}`);
+    window.location.hash = routeName;
   }
 }
 
@@ -90,7 +93,50 @@ function renderMessages() {
   
   box.querySelectorAll('[data-message]').forEach(node => node.classList.add('is-ready'));
   if (store.state.autoScroll && $('.chat-scroll')) $('.chat-scroll').scrollTop = $('.chat-scroll').scrollHeight;
+  updateMinimapMarkers();
 }
+
+// =========================================================
+// Conversation Activity Minimap (Activity Markers on Scrollbar)
+// =========================================================
+function updateMinimapMarkers() {
+  const track = $('#chat-minimap');
+  const messagesBox = $('#messages');
+  if (!track || !messagesBox) return;
+
+  // Clear existing markers
+  track.innerHTML = '';
+
+const messages = messagesBox.querySelectorAll('article.message');
+  const totalHeight = messagesBox.scrollHeight;
+
+  if (!messages.length || totalHeight <= 0) {
+    track.style.display = 'none';
+    return;
+  }
+  track.style.display = '';
+
+  messages.forEach((msg, index) => {
+    const topOffset = msg.offsetTop;
+    const percentage = (topOffset / totalHeight) * 100;
+
+    const dot = document.createElement('div');
+    dot.className = 'minimap-dot';
+    dot.classList.add(msg.classList.contains('user') ? 'user-marker' : 'ai-marker');
+    dot.style.top = `${percentage}%`;
+    dot.title = `Jump to message #${index + 1}`;
+
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    track.appendChild(dot);
+  });
+}
+
+// Keep minimap in sync with new messages, chat switches, and window resizes
+window.addEventListener('resize', () => updateMinimapMarkers());
 
 function stripMarkdownForSpeech(md = '') {
   return md

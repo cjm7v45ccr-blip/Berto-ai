@@ -858,6 +858,74 @@
   padding-bottom: 16px;
 }
 
+/* =========================================================
+   Conversation Activity Minimap Scrollbar
+   ========================================================= */
+
+.chat-area {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+}
+
+.chat-minimap {
+  position: relative;
+  flex: 0 0 10px;
+  width: 10px;
+  border-radius: 99px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.06));
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+  margin: 54px 0 16px;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.chat-minimap:hover {
+  background: linear-gradient(180deg, rgba(130,243,208,0.06), rgba(255,255,255,0.08));
+  border-left-color: var(--accent-strong);
+}
+
+.minimap-dot {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  pointer-events: auto;
+}
+
+.minimap-dot:hover {
+  transform: translateX(-50%) scale(1.6);
+  box-shadow: 0 0 8px rgba(130, 243, 208, 0.5);
+}
+
+.minimap-dot.ai-marker {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(130, 243, 208, 0.35);
+}
+
+.minimap-dot.user-marker {
+  background: #f472b6;
+  box-shadow: 0 0 6px rgba(244, 114, 182, 0.35);
+}
+
+/* Active / current-view indicator */
+.chat-minimap .minimap-dot.active-marker {
+  box-shadow: 0 0 10px rgba(130, 243, 208, 0.75);
+  outline: 2px solid rgba(255,255,255,0.35);
+}
+
+/* Hide minimap on small screens */
+@media (max-width: 800px) {
+  .chat-minimap {
+    display: none;
+  }
+}
+
 #view-chat.view.active {
   display: flex;
   flex-direction: column;

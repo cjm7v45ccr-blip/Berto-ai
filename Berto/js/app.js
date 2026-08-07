@@ -782,7 +782,6 @@ AVAILABLE UI ACTIONS:
 - "type": { "action": "type", "selector": "#writing-input"|"#prompt"|"#search-input", "value": "text" }
 - "click": { "action": "click", "selector": "#send-button"|".chat-item"|"data-action" }
 - "navigate": { "action": "navigate", "view": "chat"|"writing"|"files"|"voice"|"settings" }
-- "use_writing_studio": { "action": "use_writing_studio", "format": "Essay"|"Email"|"Blog"|"Report"|"Resume"|"Cover Letter", "prompt": "topic text" }
 - "set_name": { "action": "set_name", "value": "New Name" }
 - "set_theme": { "action": "set_theme", "value": "dark"|"light" }
 - "snap_photo": { "action": "snap_photo", "countdown": 2, "prompt": "<user question or prompt if provided>", "autoCapture": true }
@@ -1610,17 +1609,76 @@ async function extractExcelText(file) {
   return fullText;
 }
 
+// Generate a unique name for "Add as New" (e.g., document (1).pdf)
+function getUniqueFileName(existingFiles, fileName) {
+  const parts = fileName.split('.');
+  const ext = parts.length > 1 ? '.' + parts.pop() : '';
+  const baseName = parts.join('.');
+  let counter = 1;
+  let newName = `${baseName} (${counter})${ext}`;
+
+  while (existingFiles.some(f => f.name === newName)) {
+    counter++;
+    newName = `${baseName} (${counter})${ext}`;
+  }
+  return newName;
+}
+
+// Modal Prompt: Returns 'cancel', 'replace', or 'add'
+function promptDuplicateFile(fileName) {
+  return new Promise(resolve => {
+    openModal('File Already Exists', `
+      <div style="text-align: left;">
+        <p class="modal-copy">A file named <strong style="color:var(--text);">${escapeHtml(fileName)}</strong> is already in your workspace library.</p>
+        <p class="modal-copy" style="margin-top:-6px; color:var(--muted);">Select how you want to handle this duplicate:</p>
+        
+        <div class="modal-actions" style="justify-content: flex-end; gap: 8px; margin-top: 20px;">
+          <button class="button ghost" id="dup-cancel-btn">Cancel</button>
+          <button class="button ghost" id="dup-add-btn">Add as New</button>
+          <button class="button primary" id="dup-replace-btn">Replace</button>
+        </div>
+      </div>
+    `);
+
+    $('#dup-cancel-btn')?.addEventListener('click', () => { closeModal(); resolve('cancel'); });
+    $('#dup-add-btn')?.addEventListener('click', () => { closeModal(); resolve('add'); });
+    $('#dup-replace-btn')?.addEventListener('click', () => { closeModal(); resolve('replace'); });
+  });
+}
+
 $('#file-input')?.addEventListener('change', async event => {
   const files = [...event.target.files];
   const accepted = files.filter(file => file.size <= CONFIG.maxAttachmentSize);
   
   if (accepted.length !== files.length) {
-    toast('Files over 7MB were skipped', 'error');
+    toast('Files over 100MB were skipped', 'error');
   }
 
+  let processedCount = 0;
+
   for (const file of accepted) {
+    let targetName = file.name;
+    const existingFile = store.state.files.find(f => f.name === targetName);
+
+    // Check for Duplicate File
+    if (existingFile) {
+      const choice = await promptDuplicateFile(targetName);
+
+      if (choice === 'cancel') {
+        toast(`Skipped "${targetName}"`, 'info');
+        continue; // Skip this file
+      } else if (choice === 'replace') {
+        store.removeFile(targetName);
+        currentAttachments = currentAttachments.filter(a => a.name !== targetName);
+        toast(`Replacing "${targetName}"...`, 'info');
+      } else if (choice === 'add') {
+        targetName = getUniqueFileName(store.state.files, targetName);
+        toast(`Renamed to "${targetName}"`, 'info');
+      }
+    }
+
     let textContent = '';
-    const ext = file.name.split('.').pop().toLowerCase();
+    const ext = targetName.split('.').pop().toLowerCase();
     const isImage = file.type.startsWith('image/');
 
     try {
@@ -1628,28 +1686,28 @@ $('#file-input')?.addEventListener('change', async event => {
         textContent = await fileToBase64(file);
       } 
       else if (ext === 'pdf') {
-        toast(`Extracting PDF text: ${file.name}...`);
+        toast(`Extracting PDF text: ${targetName}...`);
         textContent = await extractPdfText(file);
       } 
       else if (ext === 'docx' || ext === 'doc') {
-        toast(`Extracting Word document: ${file.name}...`);
+        toast(`Extracting Word document: ${targetName}...`);
         textContent = await extractDocxText(file);
       } 
       else if (['xlsx', 'xls', 'csv'].includes(ext)) {
-        toast(`Extracting spreadsheet data: ${file.name}...`);
+        toast(`Extracting spreadsheet data: ${targetName}...`);
         textContent = await extractExcelText(file);
       } 
       else if (file.type.startsWith('text/') || ['txt','md','json','js','ts','py','html','css','c','cpp','java','sh'].includes(ext)) {
         textContent = await file.text();
       }
     } catch (err) {
-      console.error(`Failed to read file ${file.name}:`, err);
-      toast(`Failed to process ${file.name}`, 'error');
+      console.error(`Failed to read file ${targetName}:`, err);
+      toast(`Failed to process ${targetName}`, 'error');
       continue;
     }
 
     const fileObj = {
-      name: file.name,
+      name: targetName,
       type: ext.toUpperCase(),
       mimeType: file.type || 'application/octet-stream',
       size: `${Math.max(1, Math.ceil(file.size / 1024))} KB`,
@@ -1663,12 +1721,16 @@ $('#file-input')?.addEventListener('change', async event => {
       ...fileObj,
       file
     });
+    processedCount++;
   }
+
+  // Reset file input so re-selecting the same file fires event
+  event.target.value = '';
 
   updateAttachmentLabel();
   updateCount();
   renderFiles();
-  if (accepted.length) toast(`${accepted.length} file(s) processed & attached`);
+  if (processedCount > 0) toast(`${processedCount} file(s) processed`);
 });
 
 $('#api-key-setting')?.addEventListener('change', event => {
@@ -1793,8 +1855,12 @@ if (store.state.voiceFeaturesDisabled) {
 // =========================================================
 // RESTORE ACTIVE TAB / ROUTE ON REFRESH & BROWSER BACK/FORWARD
 // =========================================================
-const initialRoute = window.location.hash.slice(1) || store.state.route || 'chat';
-route(initialRoute);
+const savedRoute = window.location.hash.slice(1) 
+  || localStorage.getItem('berto-active-route') 
+  || store.state.route 
+  || 'chat';
+
+route(savedRoute);
 
 // Listen for Browser Back / Forward buttons & URL Hash changes
 window.addEventListener('hashchange', () => {
