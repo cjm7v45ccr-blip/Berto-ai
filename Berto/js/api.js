@@ -197,13 +197,14 @@ class ModelRouter {
                   items: {
                     type: "OBJECT",
                     properties: {
-                       action: { 
-                         type: "STRING", 
-                         description: "Action: 'snap_photo', 'navigate', 'set_name', 'set_theme', 'type', 'click', 'new_chat', 'send_chat', 'showcase_features', 'save_memory'" 
-                       },
+                      action: { 
+                        type: "STRING", 
+                        description: "Action: 'snap_photo', 'use_writing_studio', 'navigate', 'set_name', 'set_theme', 'type', 'click', 'new_chat', 'send_chat', 'showcase_features', 'save_memory'" 
+                      },
                       countdown: { type: "NUMBER", description: "Countdown seconds before snapping photo (default 2)" },
                       autoCapture: { type: "BOOLEAN", description: "Whether to auto-snap after countdown (default true)" },
-                      prompt: { type: "STRING", description: "Topic/prompt or question to analyze with snapped photo" },
+                      format: { type: "STRING", description: "Format for writing studio: 'Essay', 'Email', 'Blog', 'Report', 'Resume'" },
+                      prompt: { type: "STRING", description: "Topic/prompt for Writing Studio or question to analyze with snapped photo" },
                       value: { type: "STRING", description: "Text or value to insert" },
                       target: { type: "STRING", description: "Element ID, selector, or label" },
                       view: { type: "STRING", description: "View name: 'chat', 'writing', 'files', 'voice', 'settings'" }

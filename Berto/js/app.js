@@ -782,6 +782,7 @@ AVAILABLE UI ACTIONS:
 - "type": { "action": "type", "selector": "#writing-input"|"#prompt"|"#search-input", "value": "text" }
 - "click": { "action": "click", "selector": "#send-button"|".chat-item"|"data-action" }
 - "navigate": { "action": "navigate", "view": "chat"|"writing"|"files"|"voice"|"settings" }
+- "use_writing_studio": { "action": "use_writing_studio", "format": "Essay"|"Email"|"Blog"|"Report"|"Resume"|"Cover Letter", "prompt": "topic text" }
 - "set_name": { "action": "set_name", "value": "New Name" }
 - "set_theme": { "action": "set_theme", "value": "dark"|"light" }
 - "snap_photo": { "action": "snap_photo", "countdown": 2, "prompt": "<user question or prompt if provided>", "autoCapture": true }

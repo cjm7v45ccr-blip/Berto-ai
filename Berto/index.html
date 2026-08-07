@@ -92,6 +92,7 @@
       </button>
       <nav class="nav-list" aria-label="Workspace">
         <button class="nav-item active" data-route="chat" title="Chats"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="nav-label">Chats</span><span class="nav-count">1</span></button>
+        <button class="nav-item" data-route="writing" title="Writing Studio"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span><span class="nav-label">Writing Studio</span></button>
         <button class="nav-item" data-route="files" title="Files"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="nav-label">Files</span></button>
 
         <button class="nav-item" data-route="voice" title="Voice"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span><span class="nav-label">Voice</span></button>
@@ -263,6 +264,138 @@
             </div>
           </div>
 
+        </div>
+      </section>
+
+      <!-- View 2: Writing Studio -->
+      <section class="view" id="view-writing" data-view="writing">
+        <div class="page-shell writing-page">
+          <div class="page-heading writing-heading">
+            <div>
+              <div class="eyebrow">
+                <span class="spark"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg></span> 
+                Voice Clone Studio
+              </div>
+              <h2>Writing Studio</h2>
+              <p>Draft with your personal voice. Berto matches your sentence structure and rhythm from saved samples.</p>
+            </div>
+            <div class="writing-heading-actions">
+              <button class="button primary glow-btn" data-action="new-writing">
+                <span>New Draft</span>
+                <span class="btn-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+              </button>
+            </div>
+          </div>
+
+          <div class="writing-studio-grid">
+            <div class="writing-canvas panel">
+              <div class="studio-toolbar">
+                <div class="toolbar-left">
+                  <div class="select-wrapper">
+                    <span class="select-label">Format:</span>
+                    <select class="mode-select" id="writing-mode" aria-label="Writing format">
+                      <option>Essay</option>
+                      <option>Email</option>
+                      <option>Blog</option>
+                      <option>Report</option>
+                      <option>Resume</option>
+                      <option>Cover Letter</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="toolbar-right">
+                  <span class="save-status-badge" id="writing-save-status">Saved locally</span>
+                  <button class="button ghost tool-btn dictate-btn" id="dictate-btn" data-action="dictate-notes" title="Voice Dictate Note">
+                    <span class="btn-flex"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Dictate</span>
+                  </button>
+                  <button class="icon-button tool-btn" data-action="writing-clear" title="Clear Draft" aria-label="Clear draft">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="editor-container">
+                <textarea id="writing-input" placeholder="Start typing your draft, paste rough notes, or outline your thoughts here..."></textarea>
+              </div>
+
+              <div class="writing-footer-row">
+                <div class="metrics-pill">
+                  <span class="metrics-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+                  <span id="writing-metrics">0 words · readability 0</span>
+                </div>
+                <div class="writing-export-actions">
+                  <button class="export-btn" data-action="export-writing-md">.MD</button>
+                  <button class="export-btn" data-action="export-writing-txt">.TXT</button>
+                </div>
+              </div>
+
+              <div class="writing-output-pane" id="writing-output" hidden></div>
+
+              <div class="editor-footer">
+                <div class="active-profile-indicator">
+                  <span class="profile-dot"></span>
+                  <span>Voice: <strong id="active-profile">Clear & thoughtful</strong></span>
+                </div>
+                <button class="button primary studio-generate-btn" data-action="writing-generate">
+                  <span>Generate in My Voice</span>
+                  <span class="spark"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg></span>
+                </button>
+              </div>
+            </div>
+
+            <aside class="writing-tools">
+              <div class="panel profile-card studio-card">
+                <div class="card-heading">
+                  <span class="card-title">
+                    <span class="title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> 
+                    Writing Profile
+                  </span>
+                  <button class="text-button studio-link" data-action="profile-settings">Edit Voice</button>
+                </div>
+                <h3 id="profile-card-name">Clear & thoughtful</h3>
+                <p id="profile-card-summary">Warm, precise, and easy to follow.</p>
+                <div class="profile-tags" id="profile-tags">
+                  <span>Balanced</span><span>Conversational</span><span>Plain language</span>
+                </div>
+                <button class="button ghost profile-sample-button studio-sample-btn" data-action="edit-writing-profile">
+                  <span>Manage Voice Samples</span>
+                  <span class="btn-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+                </button>
+              </div>
+
+              <div class="panel prompt-card studio-card">
+                <div class="card-heading">
+                  <span class="card-title">
+                    <span class="title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> 
+                    Quick Starters
+                  </span>
+                </div>
+                <div class="template-list">
+                  <button class="template-item" data-writing-template="Write a professional email with a clear subject line and friendly tone">
+                    <div class="template-info">
+                      <strong>Professional Email</strong>
+                      <small>Clear subject line & friendly tone</small>
+                    </div>
+                    <span class="template-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+                  </button>
+                  <button class="template-item" data-writing-template="Write a concise report with an executive summary and key findings">
+                    <div class="template-info">
+                      <strong>Project Report</strong>
+                      <small>Executive summary & key findings</small>
+                    </div>
+                    <span class="template-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+                  </button>
+                  <button class="template-item" data-writing-template="Write a compelling cover letter tailored to a role">
+                    <div class="template-info">
+                      <strong>Cover Letter</strong>
+                      <small>Tailored application pitch</small>
+                    </div>
+                    <span class="template-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
       </section>
 

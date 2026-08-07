@@ -331,6 +331,43 @@ async function executeUiSequence(actions) {
         }
         await sleep(200);
       }
+      else if (type === 'use_writing_studio' || type === 'writing_studio' || type === 'draft_in_studio') {
+        const format = step.format || step.mode || 'Essay';
+        const promptText = step.prompt || step.value || step.text || '';
+
+        route('writing');
+        await sleep(350);
+
+        const modeSelect = $('#writing-mode');
+        if (modeSelect && format) {
+          const options = Array.from(modeSelect.options);
+          const match = options.find(o => o.value.toLowerCase().includes(format.toLowerCase()));
+          if (match) modeSelect.value = match.value;
+          modeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        await sleep(200);
+
+        if (promptText) {
+          const input = $('#writing-input');
+          if (input) {
+            input.focus();
+            input.value = '';
+            for (let i = 0; i < promptText.length; i++) {
+              input.value += promptText[i];
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              if (typeof writingMetrics === 'function') writingMetrics();
+              await sleep(8);
+            }
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+        await sleep(300);
+
+        if (step.generate !== false) {
+          generateWriting();
+        }
+        toast(`${LOGO_HTML} Writing Studio active — drafting ${format}...`);
+      }
       else if (type === 'rename_chat') {
         const targetId = step.id || store.state.activeChatId;
         const newTitle = step.title || step.value;
